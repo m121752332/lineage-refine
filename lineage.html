@@ -36,7 +36,7 @@ canvas{display:block;}
 /* ===== 對話框 ===== */
 .dialog-box{
   position:absolute;top:56px;left:20px;
-  width:390px;height:545px;
+  width:390px;height:363px;
   display:flex;flex-direction:column;
   background:rgba(10,7,4,0.97);border:2px solid var(--border);
   padding:14px 18px;pointer-events:all;box-sizing:border-box;
@@ -1019,7 +1019,7 @@ createApp({
       const player=JSON.parse(localStorage.getItem('lineage_player')||'{}');
       player.loggedIn=false;
       localStorage.setItem('lineage_player',JSON.stringify(player));
-      window.location.href='login.html';
+      window.location.href='logout.html';
     }
 
     // ─── 批量購買 ───

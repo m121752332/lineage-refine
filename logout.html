@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>天堂：經典版 — 離線</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;700;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{
+  width:100%;height:100%;overflow:hidden;
+  background:#000;
+  font-family:'Noto Serif TC',serif;
+  cursor:pointer;
+}
+
+/* ── 背景 ── */
+.bg{
+  position:fixed;inset:0;z-index:0;
+  background:#000 url('static/logout_bg.jpg') center center / 100% 100% no-repeat;
+}
+.bg::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(
+    to right,
+    rgba(0,0,0,0.15) 0%,
+    rgba(0,0,0,0.35) 55%,
+    rgba(0,0,0,0.82) 72%,
+    rgba(0,0,0,0.96) 100%
+  );
+}
+
+/* ── 右側字幕捲軸區域 ── */
+.credits-stage{
+  position:fixed;
+  top:0;bottom:0;right:0;
+  width:36%;
+  z-index:10;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  /* 上下淡出遮罩 */
+  -webkit-mask-image:linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0,0,0,0.6) 6%,
+    #000 15%,
+    #000 82%,
+    rgba(0,0,0,0.6) 92%,
+    transparent 100%
+  );
+  mask-image:linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(0,0,0,0.6) 6%,
+    #000 15%,
+    #000 82%,
+    rgba(0,0,0,0.6) 92%,
+    transparent 100%
+  );
+}
+
+
+/* 滾動內容容器 */
+.credits-scroll{
+  padding:100vh 28px 80px 32px;
+  animation:roll var(--duration,90s) linear forwards;
+  animation-play-state:running;
+}
+@keyframes roll{
+  from{ transform:translateY(0); }
+  to  { transform:translateY(var(--scroll-to,-100%)); }
+}
+
+/* ── 標題區塊 ── */
+.credits-main-title{
+  text-align:center;
+  margin-bottom:2.4em;
+}
+.credits-main-title .game-title{
+  font-size:1.35em;font-weight:900;letter-spacing:0.25em;
+  color:#f0d060;
+  text-shadow:0 0 18px rgba(240,208,96,0.6),0 2px 6px rgba(0,0,0,0.8);
+  display:block;margin-bottom:0.2em;
+}
+.credits-main-title .game-sub{
+  font-size:0.85em;font-weight:400;letter-spacing:0.3em;
+  color:#c8a84b;
+  text-shadow:0 0 10px rgba(200,168,75,0.4);
+  display:block;margin-bottom:0.9em;
+}
+.credits-main-title .tagline{
+  font-size:0.72em;font-weight:300;letter-spacing:0.2em;
+  color:rgba(232,213,160,0.65);
+  display:block;
+}
+.credits-divider{
+  width:60%;margin:0 auto 2.8em;
+  border:none;border-top:1px solid rgba(200,168,75,0.4);
+}
+
+/* ── 各節區塊 ── */
+.credits-section{
+  margin-bottom:2.6em;
+  text-align:center;
+}
+.section-heading{
+  font-size:0.7em;font-weight:700;letter-spacing:0.35em;
+  color:#c8a84b;
+  text-transform:uppercase;
+  margin-bottom:1em;
+  position:relative;
+  display:inline-block;
+}
+.section-heading::before,
+.section-heading::after{
+  content:'';display:inline-block;
+  width:18px;height:1px;
+  background:rgba(200,168,75,0.5);
+  vertical-align:middle;
+  margin:0 8px;
+}
+.credit-row{
+  display:flex;
+  justify-content:center;
+  align-items:baseline;
+  gap:0;
+  margin-bottom:0.55em;
+  line-height:1.6;
+}
+.credit-role{
+  font-size:0.65em;font-weight:300;letter-spacing:0.12em;
+  color:rgba(232,213,160,0.55);
+  text-align:right;
+  min-width:7em;
+  padding-right:1em;
+}
+.credit-name{
+  font-size:0.82em;font-weight:400;letter-spacing:0.18em;
+  color:rgba(232,213,160,0.92);
+  text-align:left;
+  min-width:7em;
+}
+/* 無角色標籤時：純名稱置中 */
+.credit-single{
+  font-size:0.75em;font-weight:300;letter-spacing:0.2em;
+  color:rgba(232,213,160,0.75);
+  text-align:center;
+  margin-bottom:0.55em;
+  line-height:1.6;
+}
+
+/* ── 結尾文字 ── */
+.credits-closing{
+  text-align:center;
+  margin-top:1.5em;
+  padding-top:2em;
+}
+.credits-closing .closing-text{
+  font-size:0.68em;font-weight:300;letter-spacing:0.25em;
+  color:rgba(200,168,75,0.5);
+  display:block;
+  animation:blink 2.4s ease-in-out infinite;
+}
+@keyframes blink{
+  0%,100%{ opacity:0.35; }
+  50%{ opacity:0.9; }
+}
+
+/* ── 左下角 Logo 浮水印 ── */
+.logo-badge{
+  position:fixed;left:24px;bottom:24px;z-index:20;
+  display:flex;flex-direction:column;align-items:flex-start;
+  pointer-events:none;
+}
+.logo-badge .logo-title{
+  font-size:1.05em;font-weight:900;letter-spacing:0.3em;
+  color:rgba(240,208,96,0.25);
+  text-shadow:0 0 20px rgba(240,208,96,0.1);
+}
+.logo-badge .logo-sub{
+  font-size:0.6em;font-weight:300;letter-spacing:0.25em;
+  color:rgba(200,168,75,0.18);
+  margin-top:2px;
+}
+
+/* ── 音訊圖示 ── */
+.audio-hint{
+  position:fixed;top:18px;left:50%;transform:translateX(-50%);
+  z-index:30;
+  font-size:0.68em;letter-spacing:0.2em;
+  color:rgba(200,168,75,0.5);
+  transition:opacity 0.8s;
+  pointer-events:none;
+}
+.audio-hint.hidden{ opacity:0; }
+
+/* 整頁淡入 */
+body{ animation:fadeIn 1.2s ease-out both; }
+@keyframes fadeIn{
+  from{ opacity:0; }
+  to  { opacity:1; }
+}
+</style>
+</head>
+<body>
+
+<div class="bg"></div>
+
+<div class="credits-stage">
+  <div class="credits-scroll" id="creditsScroll">
+    <!-- 由 JS 注入 -->
+  </div>
+</div>
+
+<div class="logo-badge">
+  <span class="logo-title">天堂</span>
+  <span class="logo-sub">LINEAGE CLASSIC</span>
+</div>
+
+<div class="audio-hint" id="audioHint">♪ 背景音樂播放中</div>
+
+<audio id="bgm" loop>
+  <source src="static/bgm/lineage_logout.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+(async function(){
+  /* ── 載入字幕資料 ── */
+  let data;
+  try {
+    const res = await fetch('credits.json');
+    data = await res.json();
+  } catch {
+    data = {
+      title:'天堂：經典版', subtitle:'精煉模擬器', tagline:'感謝您的遊玩',
+      sections:[
+        { heading:'製作', role_label:false,
+          members:[{ name:'Game' }] }
+      ],
+      closing:'點擊任意處返回登入'
+    };
+  }
+
+  /* ── 渲染字幕 DOM ── */
+  const container = document.getElementById('creditsScroll');
+
+  function h(tag, cls, text){
+    const el = document.createElement(tag);
+    if(cls) el.className = cls;
+    if(text !== undefined) el.textContent = text;
+    return el;
+  }
+
+  // 主標題
+  const mainTitle = h('div','credits-main-title');
+  mainTitle.innerHTML =
+    `<span class="game-title">${data.title}</span>` +
+    `<span class="game-sub">${data.subtitle}</span>` +
+    `<span class="tagline">${data.tagline}</span>`;
+  container.appendChild(mainTitle);
+  container.appendChild(h('hr','credits-divider'));
+
+  // 各節
+  data.sections.forEach(section => {
+    const sec = h('div','credits-section');
+
+    const hdg = h('div','');
+    hdg.innerHTML = `<span class="section-heading">${section.heading}</span>`;
+    sec.appendChild(hdg);
+
+    section.members.forEach(member => {
+      if(section.role_label && member.role){
+        const row = h('div','credit-row');
+        const roleEl = h('span','credit-role', member.role);
+        const nameEl = h('span','credit-name', member.name);
+        row.appendChild(roleEl);
+        row.appendChild(nameEl);
+        sec.appendChild(row);
+      } else {
+        const single = h('div','credit-single', member.name);
+        sec.appendChild(single);
+      }
+    });
+
+    container.appendChild(sec);
+  });
+
+  // 結語
+  const closing = h('div','credits-closing');
+  closing.innerHTML = `<span class="closing-text">${data.closing}</span>`;
+  container.appendChild(closing);
+
+  /* ── 計算滾動高度並設定動畫時長 ── */
+  //  讓動畫在下一幀才算高度（DOM 已渲染）
+  requestAnimationFrame(() => {
+    const totalH = container.scrollHeight;
+    const vh = window.innerHeight;
+    // 起點在 paddingTop(100vh) 之後，需捲動到內容完全離開畫面
+    const dist = totalH;  // translateY 從 0 → -dist（padding 已抵消起始偏移）
+    const speed = 55; // px/s  可調
+    const duration = Math.round(dist / speed);
+
+    container.style.setProperty('--duration', duration + 's');
+    container.style.setProperty('--scroll-to', '-' + totalH + 'px');
+  });
+
+  /* ── 音訊 ── */
+  const bgm = document.getElementById('bgm');
+  bgm.volume = 0.55;
+
+  function tryPlay(){
+    bgm.play().catch(() => {
+      // autoplay blocked — 等使用者互動
+    });
+  }
+  tryPlay();
+
+  const hint = document.getElementById('audioHint');
+  setTimeout(() => hint.classList.add('hidden'), 4000);
+
+  /* ── 點擊任意處返回登入 ── */
+  let clickReady = false;
+  // 先給 0.8s 防止誤觸
+  setTimeout(() => { clickReady = true; }, 800);
+
+  document.addEventListener('click', () => {
+    if(!clickReady) return;
+    // 確保音訊先暫停再跳轉
+    bgm.pause();
+    document.body.style.transition = 'opacity 0.6s';
+    document.body.style.opacity = '0';
+    setTimeout(() => { window.location.href = 'login.html'; }, 620);
+  });
+
+  /* ── 首次互動後確保音樂播放 ── */
+  document.addEventListener('click', () => { if(bgm.paused && clickReady===false) tryPlay(); }, { once:true });
+
+})();
+</script>
+</body>
+</html>
