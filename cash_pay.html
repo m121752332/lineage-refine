@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>天堂：經典版 — 天幣儲值</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.4.21/vue.global.prod.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --gold:#c8a84b;--gold2:#f0d060;--panel:#150e06;--panel2:#1c1208;
+  --border:#6a4420;--border2:#3a2010;--text:#e8d5a0;--red:#cc2222;
+}
+html,body{width:100%;min-height:100%;background:#080503;font-family:'Noto Serif TC',serif;color:var(--text);}
+
+/* ── 頂部 ── */
+.page-header{
+  background:linear-gradient(180deg,#1c1408 0%,#100c04 100%);
+  border-bottom:2px solid var(--border2);padding:12px 24px;
+  display:flex;align-items:center;gap:14px;
+  position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,0.8);
+}
+.page-title{color:var(--gold2);font-size:16px;font-weight:700;letter-spacing:3px;text-shadow:0 0 8px rgba(240,208,96,0.4);}
+.player-badge{padding:3px 12px;background:rgba(90,58,26,0.3);border:1px solid var(--border);color:var(--text);font-size:12px;}
+.gold-badge{padding:3px 14px;background:rgba(180,120,0,0.15);border:1px solid rgba(200,160,0,0.4);color:var(--gold2);font-size:13px;font-weight:700;}
+.back-btn{
+  margin-left:auto;padding:6px 16px;
+  background:var(--panel2);border:1px solid var(--border);
+  color:var(--text);font-size:12px;font-family:inherit;cursor:pointer;transition:all 0.15s;
+}
+.back-btn:hover{background:var(--border);color:var(--gold2);}
+
+/* ── 中央卡片 ── */
+.pay-wrap{max-width:520px;margin:32px auto;padding:0 24px;}
+.pay-card{
+  background:linear-gradient(180deg,#1c1408 0%,#120c04 100%);
+  border:1px solid var(--border2);
+  box-shadow:0 0 0 1px var(--border2),0 0 40px rgba(0,0,0,0.8),inset 0 0 20px rgba(0,0,0,0.4);
+}
+.card-hd{
+  background:linear-gradient(90deg,#2a1c0a 0%,#1a1006 100%);
+  border-bottom:1px solid var(--border);padding:10px 16px;
+  color:var(--gold2);font-size:13px;font-weight:700;letter-spacing:2px;
+}
+.card-body{padding:20px 20px 24px;}
+
+/* ── 匯率說明 ── */
+.rate-info{
+  background:var(--panel2);border:1px solid var(--border2);
+  padding:10px 14px;margin-bottom:20px;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  font-size:12px;color:#888;
+}
+.rate-info .rate-val{color:var(--gold2);font-weight:700;}
+.rate-info .sep{color:var(--border);}
+
+/* ── 輸入區 ── */
+.input-section{margin-bottom:18px;}
+.input-label{color:var(--text);font-size:13px;margin-bottom:8px;}
+.amount-row{display:flex;gap:8px;align-items:center;}
+.amount-row input{
+  flex:1;height:40px;background:var(--panel2);border:1px solid var(--border);
+  color:var(--gold2);font-size:18px;font-family:inherit;text-align:right;
+  padding:0 12px;outline:none;
+}
+.amount-row input:focus{border-color:var(--gold);}
+.amount-unit{color:#888;font-size:13px;white-space:nowrap;}
+.amount-slider{width:100%;margin:10px 0 6px;accent-color:var(--gold);}
+
+/* ── 快選 ── */
+.presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;}
+.preset-btn{
+  padding:5px 14px;background:var(--panel2);border:1px solid var(--border2);
+  color:var(--text);font-size:12px;cursor:pointer;transition:all 0.1s;
+}
+.preset-btn:hover{border-color:var(--gold);color:var(--gold2);}
+.preset-btn.active{background:rgba(90,58,26,0.5);border-color:var(--gold);color:var(--gold2);}
+
+/* ── 預覽 ── */
+.preview-box{
+  background:rgba(200,160,0,0.06);border:1px solid rgba(200,160,0,0.25);
+  padding:14px 16px;margin-bottom:20px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.preview-label{color:#888;font-size:12px;}
+.preview-coins{color:var(--gold2);font-size:24px;font-weight:700;text-shadow:0 0 10px rgba(240,208,96,0.3);}
+.preview-sub{font-size:11px;color:#555;margin-top:3px;}
+
+/* ── 按鈕 ── */
+.pay-btns{display:flex;gap:0;border-top:1px solid var(--border);}
+.pay-btn{
+  flex:1;padding:13px;font-size:14px;font-family:inherit;cursor:pointer;
+  border:none;transition:background 0.15s;
+}
+.pay-btn.confirm{background:rgba(90,58,26,0.6);color:var(--gold2);}
+.pay-btn.confirm:hover{background:var(--border);}
+.pay-btn.confirm:disabled{opacity:0.4;cursor:not-allowed;}
+.pay-btn.cancel{background:var(--panel2);color:#888;border-left:1px solid var(--border);}
+.pay-btn.cancel:hover{background:#2a1808;color:var(--text);}
+
+/* ── Toast ── */
+.toast{
+  position:fixed;top:64px;left:50%;transform:translateX(-50%);
+  background:var(--panel2);border:1px solid var(--border);
+  padding:8px 20px;font-size:13px;color:var(--text);z-index:999;pointer-events:none;
+  animation:tIn 0.2s,tOut 0.3s 2.7s forwards;
+}
+@keyframes tIn{from{opacity:0;transform:translateX(-50%) translateY(-8px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+@keyframes tOut{to{opacity:0;}}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- 頂部 -->
+  <div class="page-header">
+    <div class="page-title">💳 天幣儲值</div>
+    <div class="player-badge" v-if="charName">⚔ {{ charName }}</div>
+    <div class="gold-badge">{{ fmtGold(currentGold) }} 天幣</div>
+    <button class="back-btn" @click="goBack">← 返回遊戲</button>
+  </div>
+
+  <div class="pay-wrap">
+    <div class="pay-card">
+      <div class="card-hd">選擇儲值金額</div>
+      <div class="card-body">
+
+        <!-- 匯率資訊 -->
+        <div class="rate-info">
+          <span>官方匯率</span>
+          <span class="sep">│</span>
+          <span>新台幣 <span class="rate-val">1 元</span> = 天幣 <span class="rate-val">{{ twdRate }}</span></span>
+          <span class="sep">│</span>
+          <span>上限 <span class="rate-val">10萬元 / 1,000萬天幣</span></span>
+        </div>
+
+        <!-- 金額輸入 -->
+        <div class="input-section">
+          <div class="input-label">輸入儲值金額（新台幣）</div>
+          <div class="amount-row">
+            <input type="number" v-model.number="twd" min="1" max="100000"
+              @input="onInputChange"/>
+            <span class="amount-unit">元</span>
+          </div>
+          <input type="range" class="amount-slider" v-model.number="twd"
+            min="100" max="100000" step="100"/>
+        </div>
+
+        <!-- 快選按鈕 -->
+        <div class="presets">
+          <span style="color:#888;font-size:11px;align-self:center;">快速選擇：</span>
+          <button v-for="p in presets" :key="p"
+            class="preset-btn" :class="{active: twd===p}" @click="twd=p">
+            {{ p >= 10000 ? (p/10000)+'萬' : p.toLocaleString() }}元
+          </button>
+        </div>
+
+        <!-- 預覽 -->
+        <div class="preview-box">
+          <div>
+            <div class="preview-label">儲值 {{ twd.toLocaleString() }} 元，可獲得</div>
+            <div class="preview-sub">匯率 × {{ twdRate }} 計算</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="preview-coins">{{ fmtGold(coinsToGet) }}</div>
+            <div style="font-size:11px;color:#666;margin-top:2px;">天幣</div>
+          </div>
+        </div>
+
+        <!-- 儲值後餘額 -->
+        <div style="text-align:right;font-size:12px;color:#666;margin-bottom:16px;padding:0 2px;">
+          儲值後餘額：<span style="color:var(--gold2)">{{ fmtGold(currentGold + coinsToGet) }} 天幣</span>
+        </div>
+
+      </div>
+      <div class="pay-btns">
+        <button class="pay-btn confirm" @click="doTopup" :disabled="twd<1">
+          確認儲值 +{{ fmtGold(coinsToGet) }} 天幣
+        </button>
+        <button class="pay-btn cancel" @click="goBack">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div v-if="toast.show" class="toast" :style="{borderColor: toast.color}">{{ toast.text }}</div>
+</div>
+
+<script>
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+
+createApp({
+  setup() {
+    const charName   = ref('');
+    const currentGold = ref(10000000);
+    const twdRate    = ref(100);
+    const twd        = ref(1000);
+    const presets    = [100, 300, 500, 1000, 3000, 5000, 10000, 30000, 50000, 100000];
+    const toast      = reactive({ show: false, text: '', color: 'var(--border)' });
+
+    const coinsToGet = computed(() => Math.max(0, (twd.value || 0) * twdRate.value));
+
+    function fmtGold(n) { return Math.floor(n || 0).toLocaleString(); }
+    function onInputChange() {
+      twd.value = Math.min(100000, Math.max(1, twd.value || 1));
+    }
+
+    // ── 驗證身份 ──
+    onMounted(() => {
+      const player = JSON.parse(localStorage.getItem('lineage_player') || 'null');
+      if (!player?.loggedIn) { window.location.href = 'login.html'; return; }
+      charName.value   = player.name;
+      currentGold.value = player.gold ?? 10000000;
+
+      const cfg = JSON.parse(localStorage.getItem('lineage_config') || 'null');
+      if (cfg?.priceConfig?.twdRate) twdRate.value = cfg.priceConfig.twdRate;
+    });
+
+    function showToast(text, color = 'var(--gold)') {
+      toast.show = false;
+      setTimeout(() => { toast.text = text; toast.color = color; toast.show = true;
+        setTimeout(() => toast.show = false, 3000); }, 10);
+    }
+
+    function doTopup() {
+      const amount = Math.min(100000, Math.max(1, twd.value || 1));
+      const coins  = amount * twdRate.value;
+      const player = JSON.parse(localStorage.getItem('lineage_player') || '{}');
+      player.gold  = (player.gold || 0) + coins;
+      localStorage.setItem('lineage_player', JSON.stringify(player));
+      currentGold.value = player.gold;
+      showToast(`💳 儲值成功！+${fmtGold(coins)} 天幣`, 'var(--gold)');
+    }
+
+    function goBack() { window.location.href = 'lineage.html'; }
+
+    return { charName, currentGold, twdRate, twd, presets, coinsToGet, toast, fmtGold, onInputChange, doTopup, goBack };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

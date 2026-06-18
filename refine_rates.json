@@ -1,0 +1,63 @@
+{
+  "_note": "成功率以百分比儲存（100 = 100%），支援 6 位小數。直接修改 base 值即可調整機率，重載頁面後生效。",
+  "scroll_bonus": {
+    "_note": "加成直接疊加到 base。cursed=詛咒卷軸，成功時扣-1，失敗必爆炸",
+    "normal": 0,
+    "blessed": 20,
+    "cursed": 40
+  },
+  "weapon": {
+    "name": "武器",
+    "safe_level": 6,
+    "_note": "+0~+5 為安定範圍（100%），+6 開始進入機率區間",
+    "rates": [
+      {"from": 0,  "to": 1,  "base": 100.000000, "safe": true,  "note": "安定範圍"},
+      {"from": 1,  "to": 2,  "base": 100.000000, "safe": true,  "note": "安定範圍"},
+      {"from": 2,  "to": 3,  "base": 100.000000, "safe": true,  "note": "安定範圍"},
+      {"from": 3,  "to": 4,  "base": 100.000000, "safe": true,  "note": "安定範圍"},
+      {"from": 4,  "to": 5,  "base": 100.000000, "safe": true,  "note": "安定範圍"},
+      {"from": 5,  "to": 6,  "base": 100.000000, "safe": true,  "note": "安定範圍"},
+      {"from": 6,  "to": 7,  "base": 77.000000, "safe": false, "note": ""},
+      {"from": 7,  "to": 8,  "base": 66.000000, "safe": false, "note": ""},
+      {"from": 8,  "to": 9,  "base": 55.000000, "safe": false, "note": ""},
+      {"from": 9,  "to": 10, "base": 44.000000, "safe": false, "note": ""},
+      {"from": 10, "to": 11, "base": 33.000000, "safe": false, "note": ""},
+      {"from": 11, "to": 12, "base": 22.000000, "safe": false, "note": ""},
+      {"from": 12, "to": 13, "base": 11.000000, "safe": false, "note": ""},
+      {"from": 13, "to": 14, "base": 5.000000,  "safe": false, "note": "極低機率"},
+      {"from": 14, "to": 15, "base": 5.000000,  "safe": false, "note": "極低機率"},
+      {"from": 15, "to": 16, "base": 5.000000,  "safe": false, "note": "極低機率"},
+      {"from": 16, "to": 17, "base": 5.000000,  "safe": false, "note": "極低機率"},
+      {"from": 17, "to": 18, "base": 5.000000,  "safe": false, "note": "極低機率"},
+      {"from": 18, "to": 19, "base": 5.000000,  "safe": false, "note": "極低機率"},
+      {"from": 19, "to": 20, "base": 5.000000,  "safe": false, "note": "極低機率"}
+    ]
+  },
+  "armor": {
+    "name": "防具",
+    "safe_level": 4,
+    "_note": "+0~+3 為安定範圍（100%），+4 開始進入機率區間",
+    "rates": [
+      {"from": 0,  "to": 1,  "base": 100.000000, "safe": true,  "note": "安定範圍"},
+      {"from": 1,  "to": 2,  "base": 100.000000, "safe": true,  "note": "安定範圍"},
+      {"from": 2,  "to": 3,  "base": 100.000000, "safe": true,  "note": "安定範圍"},
+      {"from": 3,  "to": 4,  "base": 100.000000, "safe": true,  "note": "安定範圍"},
+      {"from": 4,  "to": 5,  "base": 77.000000, "safe": false, "note": ""},
+      {"from": 5,  "to": 6,  "base": 66.000000, "safe": false, "note": ""},
+      {"from": 6,  "to": 7,  "base": 55.000000, "safe": false, "note": ""},
+      {"from": 7,  "to": 8,  "base": 44.000000, "safe": false, "note": ""},
+      {"from": 8,  "to": 9,  "base": 33.000000, "safe": false, "note": ""},
+      {"from": 9,  "to": 10, "base": 22.000000, "safe": false, "note": ""},
+      {"from": 10, "to": 11, "base": 11.000000, "safe": false, "note": ""},
+      {"from": 11, "to": 12, "base": 5.000000,  "safe": false, "note": "極低機率"},
+      {"from": 12, "to": 13, "base": 5.000000,  "safe": false, "note": "極低機率"},
+      {"from": 13, "to": 14, "base": 5.000000,  "safe": false, "note": "極低機率"},
+      {"from": 14, "to": 15, "base": 5.000000,  "safe": false, "note": "極低機率"},
+      {"from": 15, "to": 16, "base": 5.000000,  "safe": false, "note": "極低機率"},
+      {"from": 16, "to": 17, "base": 5.000000,  "safe": false, "note": "極低機率"},
+      {"from": 17, "to": 18, "base": 5.000000,  "safe": false, "note": "極低機率"},
+      {"from": 18, "to": 19, "base": 5.000000,  "safe": false, "note": "極低機率"},
+      {"from": 19, "to": 20, "base": 5.000000,  "safe": false, "note": "極低機率"}
+    ]
+  }
+}

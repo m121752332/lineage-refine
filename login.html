@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>天堂：經典版 — 登入</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.4.21/vue.global.prod.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --gold:#d8b048;--gold2:#f3d873;--ink:#3a2008;--text:#e8d5a0;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Noto Serif TC',serif;}
+
+/* ── 背景：經典天堂登入場景（雜物 + 羊皮卷氛圍） ── */
+.bg{
+  position:fixed;inset:0;z-index:0;
+  background:#0a0603 url('static/login_bg.png') center center / cover no-repeat;
+}
+.bg::after{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 70% 45%,rgba(0,0,0,0) 0%,rgba(0,0,0,0.45) 70%,rgba(0,0,0,0.75) 100%);
+}
+canvas#embers{position:fixed;inset:0;z-index:1;pointer-events:none;}
+
+/* ── 舞台：維持經典 4:3 構圖並置中 ── */
+.stage{
+  position:fixed;inset:0;z-index:10;
+  display:flex;align-items:center;justify-content:center;
+}
+.frame{
+  position:relative;
+  width:min(96vw, 130vh);          /* 約 4:3 比例 */
+  aspect-ratio:4 / 3;
+  display:flex;
+}
+
+/* ── 左：羊皮卷（蓋住背景圖的卷軸） ── */
+.parchment{
+  position:absolute;left:4.5%;top:18%;
+  width:38%;height:58%;
+  padding:8% 7% 7%;
+  background:
+    radial-gradient(ellipse at 50% 0,rgba(120,85,30,0.25),transparent 60%),
+    linear-gradient(180deg,#efe2c0 0%,#e6d4a6 45%,#dcc78f 100%);
+  border-left:1px solid rgba(120,90,40,0.4);
+  border-right:1px solid rgba(120,90,40,0.4);
+  box-shadow:0 0 40px rgba(0,0,0,0.6),inset 0 0 60px rgba(150,110,50,0.35);
+  color:var(--ink);
+  display:flex;flex-direction:column;justify-content:center;
+  filter:drop-shadow(0 6px 14px rgba(0,0,0,0.5));
+}
+/* 卷軸上下捲棒 */
+.parchment::before,.parchment::after{
+  content:'';position:absolute;left:-4%;right:-4%;height:6%;
+  background:linear-gradient(180deg,#d9bf7a 0%,#9a7530 45%,#6b4a18 55%,#caa85e 100%);
+  border-radius:50%/100%;
+  box-shadow:0 2px 6px rgba(0,0,0,0.5);
+}
+.parchment::before{top:-3%;}
+.parchment::after{bottom:-3%;}
+.parchment .p-head{
+  text-align:center;font-weight:900;font-size:clamp(13px,1.7vh,20px);
+  letter-spacing:1px;margin-bottom:6%;
+  text-shadow:0 1px 0 rgba(255,245,210,0.5);
+}
+.parchment .p-body{
+  font-size:clamp(12px,1.5vh,17px);line-height:2;
+  text-shadow:0 1px 0 rgba(255,245,210,0.4);
+}
+.parchment .p-body a{color:#6a3d10;text-decoration:none;}
+.parchment .p-link{margin-top:5%;font-size:clamp(11px,1.3vh,15px);color:#5a3408;word-break:break-all;}
+
+/* ── 右：金色登入欄位（蓋住背景圖烤進去的欄位） ── */
+.panel{
+  position:absolute;right:4%;top:9%;
+  width:46%;height:82%;
+  display:flex;flex-direction:column;justify-content:center;
+  gap:clamp(10px,1.8vh,22px);
+  color:var(--gold2);
+  text-shadow:0 0 10px rgba(220,160,30,0.55),0 2px 3px #000;
+}
+
+.brand{text-align:center;margin-bottom:1vh;user-select:none;}
+.brand h1{
+  font-size:clamp(20px,3.4vh,40px);font-weight:900;letter-spacing:4px;
+  color:var(--gold2);
+  text-shadow:0 0 22px rgba(230,175,20,0.85),0 0 48px rgba(180,130,0,0.4),2px 2px 5px #000;
+}
+.brand .sub{font-size:clamp(10px,1.3vh,14px);letter-spacing:3px;color:#caa860;margin-top:3px;}
+
+/* 伺服器選擇 */
+.servers{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:.5vh;}
+.srv{
+  padding:6px 4px;text-align:center;cursor:pointer;
+  background:rgba(20,12,4,0.55);border:1px solid rgba(170,125,40,0.55);
+  color:#caa860;font-family:inherit;transition:all .15s;
+  text-shadow:0 1px 2px #000;
+}
+.srv:hover{background:rgba(60,42,12,0.7);border-color:var(--gold);}
+.srv.active{background:rgba(90,62,16,0.8);border-color:var(--gold2);color:var(--gold2);box-shadow:0 0 12px rgba(220,170,30,0.4);}
+.srv .n{display:block;font-weight:700;font-size:clamp(11px,1.4vh,14px);}
+.srv .st{font-size:clamp(9px,1.1vh,11px);color:#a98b50;}
+
+/* 帳密欄位 */
+.field{display:flex;align-items:center;gap:12px;}
+.field label{
+  min-width:5.5em;text-align:right;font-weight:700;
+  font-size:clamp(13px,1.8vh,20px);color:var(--gold2);white-space:nowrap;
+}
+.field input{
+  flex:1;min-width:0;
+  background:rgba(8,5,2,0.78);border:1px solid rgba(170,125,40,0.6);
+  border-top-color:rgba(0,0,0,0.8);
+  color:#f0e0b0;padding:8px 11px;font-size:clamp(13px,1.7vh,18px);
+  font-family:inherit;outline:none;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,0.7);
+}
+.field input::placeholder{color:#6a5836;}
+.field input:focus{border-color:var(--gold2);box-shadow:inset 0 2px 6px rgba(0,0,0,0.7),0 0 10px rgba(220,170,30,0.45);}
+.field .num{
+  font-style:italic;font-weight:900;color:var(--gold2);
+  font-size:clamp(15px,2.1vh,24px);min-width:.9em;text-align:center;
+}
+
+.error{
+  text-align:center;min-height:1.4em;color:#ff6a4a;
+  font-size:clamp(12px,1.5vh,16px);font-weight:700;
+  text-shadow:0 0 8px rgba(200,40,0,0.6),0 1px 2px #000;
+}
+
+/* 動作按鈕（登錄 / 離開）— 仿原版置中金字 + 編號 */
+.actions{display:flex;flex-direction:column;align-items:center;gap:clamp(8px,1.4vh,16px);margin-top:.5vh;}
+.act{
+  display:flex;align-items:center;justify-content:center;gap:16px;
+  background:none;border:none;cursor:pointer;font-family:inherit;
+  color:var(--gold2);font-weight:900;letter-spacing:6px;
+  font-size:clamp(17px,2.4vh,28px);
+  text-shadow:0 0 14px rgba(220,170,30,0.7),0 2px 4px #000;
+  transition:all .15s;padding:2px 8px;
+}
+.act .num{font-style:italic;letter-spacing:0;font-size:clamp(15px,2.1vh,24px);}
+.act:hover{color:#fff3c0;text-shadow:0 0 22px rgba(255,210,80,0.95),0 2px 4px #000;transform:scale(1.04);}
+.act:active{transform:scale(0.98);}
+
+/* 小螢幕降級為直式 */
+@media (max-aspect-ratio:1/1){
+  .frame{flex-direction:column;width:94vw;height:auto;aspect-ratio:auto;}
+  .parchment,.panel{position:static;width:100%;height:auto;}
+  .parchment{margin-bottom:18px;padding:32px 28px;}
+  .panel{gap:14px;}
+}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<canvas id="embers"></canvas>
+
+<div id="app">
+  <div class="stage">
+    <div class="frame">
+
+      <!-- 左側羊皮卷 -->
+      <div class="parchment">
+        <div class="p-head">&lt; 歡迎進入天堂萬人線上遊戲 &gt;</div>
+        <div class="p-body">
+          請輸入使用者之帳號和密碼。<br>
+          若尚未申請帳號，請至天堂官網辦理申請。
+          <div class="p-link">https://www.lineageclassic.tw/</div>
+        </div>
+      </div>
+
+      <!-- 右側登入面板 -->
+      <div class="panel">
+        <div class="brand">
+          <h1>天堂：經典版</h1>
+          <div class="sub">LINEAGE CLASSIC</div>
+        </div>
+
+        <div class="servers">
+          <div v-for="s in servers" :key="s.id" class="srv"
+               :class="{active: selServer===s.id}" @click="selServer=s.id">
+            <span class="n">{{s.name}}</span>
+            <span class="st">{{s.status}}</span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>遊戲帳號</label>
+          <input v-model="loginId" @keyup.enter="doLogin" maxlength="20" placeholder="請輸入帳號"/>
+          <span class="num">1</span>
+        </div>
+        <div class="field">
+          <label>遊戲密碼</label>
+          <input v-model="loginPw" type="password" @keyup.enter="doLogin" maxlength="20" placeholder="請輸入密碼"/>
+          <span class="num">2</span>
+        </div>
+
+        <div class="error">{{loginError}}</div>
+
+        <div class="actions">
+          <button class="act" @click="doLogin">登　錄<span class="num">3</span></button>
+          <button class="act" @click="goQuit">離開遊戲<span class="num">4</span></button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<audio id="bgm" src="static/bgm/lineage_login.mp3" loop preload="auto"></audio>
+<script>
+// 背景音樂：首次互動後啟動（瀏覽器 autoplay 政策）
+(function initBGM() {
+  const audio = document.getElementById('bgm');
+  const unlock = () => { audio.play().catch(() => {}); document.removeEventListener('click', unlock); document.removeEventListener('keydown', unlock); };
+  audio.play().catch(() => { document.addEventListener('click', unlock, { once: true }); document.addEventListener('keydown', unlock, { once: true }); });
+})();
+
+const { createApp, ref } = Vue;
+
+// ── 背景餘燼動畫（疊在登入場景上方，增添氣氛） ──
+(function initEmbers() {
+  const c = document.getElementById('embers');
+  const ctx = c.getContext('2d');
+  let W, H;
+  const particles = [];
+  function resize() { W = c.width = window.innerWidth; H = c.height = window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+  for (let i = 0; i < 45; i++) {
+    particles.push({
+      x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight,
+      vx: (Math.random() - 0.5) * 0.3, vy: -(Math.random() * 0.5 + 0.1),
+      life: Math.random(), maxLife: 0.8 + Math.random() * 0.8,
+      size: 1 + Math.random() * 2.2,
+      hue: 25 + Math.random() * 25
+    });
+  }
+  function tick() {
+    ctx.clearRect(0, 0, W, H);
+    for (const p of particles) {
+      p.life += 0.005;
+      if (p.life > p.maxLife) {
+        p.life = 0;
+        p.x = W * 0.2 + Math.random() * W * 0.7;
+        p.y = H * 0.6 + Math.random() * H * 0.35;
+      }
+      p.x += p.vx + Math.sin(p.life * 4) * 0.2;
+      p.y += p.vy;
+      const a = Math.sin(p.life / p.maxLife * Math.PI) * 0.55;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = `hsl(${p.hue}, 100%, 70%)`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+
+createApp({
+  setup() {
+    const loginId = ref('');
+    const loginPw = ref('');
+    const loginError = ref('');
+    const selServer = ref('apollo');
+    const servers = [
+      { id: 'apollo',  name: '太陽神 阿波羅', status: '▲ 人數：2,841' },
+      { id: 'cupid',   name: '愛神 邱比特',   status: '▲ 人數：1,567' },
+      { id: 'athena',  name: '勝利女神 雅典娜', status: '● 人數：982' },
+      { id: 'zeus',    name: '天神 宙斯',     status: '● 人數：1,204' },
+    ];
+
+    function doLogin() {
+      loginError.value = '';
+      if (!loginId.value.trim()) { loginError.value = '請輸入遊戲帳號'; return; }
+      if (!loginPw.value.trim()) { loginError.value = '請輸入遊戲密碼'; return; }
+      if (loginId.value.trim().length < 3) { loginError.value = '帳號長度至少 3 個字元'; return; }
+
+      const existing = JSON.parse(localStorage.getItem('lineage_player') || '{}');
+      const isNew = !existing.name || existing.name !== loginId.value.trim();
+
+      const player = {
+        name: loginId.value.trim(),
+        gold: isNew ? 10000000 : (existing.gold ?? 10000000),
+        loggedIn: true,
+        server: selServer.value,
+        loginTime: Date.now()
+      };
+      localStorage.setItem('lineage_player', JSON.stringify(player));
+
+      if (isNew) {
+        localStorage.removeItem('lineage_inventory');
+        localStorage.removeItem('lineage_config');
+      }
+
+      window.location.href = 'lineage.html';
+    }
+
+    function goQuit() { window.close(); }
+
+    return { loginId, loginPw, loginError, selServer, servers, doLogin, goQuit };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

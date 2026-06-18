@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>天堂：精煉機率表</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.4.21/vue.global.prod.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&family=Noto+Sans+Mono:wght@400;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --gold:#c8a84b;--gold2:#f0d060;--panel:#150e06;--panel2:#1c1208;
+  --border:#6a4420;--border2:#3a2010;--text:#e8d5a0;
+  --safe:#22aa55;--mid1:#ccaa22;--mid2:#cc7722;--danger:#cc2222;
+}
+html,body{width:100%;min-height:100%;background:#080503;font-family:'Noto Serif TC',serif;color:var(--text);}
+
+/* ── 頂部 ── */
+.page-header{
+  background:linear-gradient(180deg,#1c1408 0%,#100c04 100%);
+  border-bottom:2px solid var(--border2);
+  padding:14px 24px;display:flex;align-items:center;gap:16px;
+  position:sticky;top:0;z-index:100;
+  box-shadow:0 2px 16px rgba(0,0,0,0.8);
+}
+.page-title{color:var(--gold2);font-size:18px;font-weight:700;letter-spacing:3px;text-shadow:0 0 10px rgba(240,208,96,0.5);}
+.page-sub{color:#888;font-size:12px;letter-spacing:1px;}
+.back-btn{
+  margin-left:auto;padding:5px 16px;
+  background:rgba(0,0,0,0.4);border:1px solid var(--border);
+  color:var(--gold);font-size:12px;font-family:inherit;cursor:pointer;
+  transition:all 0.15s;
+}
+.back-btn:hover{background:rgba(90,58,26,0.5);border-color:var(--gold2);color:var(--gold2);}
+
+/* ── 說明區 ── */
+.info-bar{
+  background:rgba(90,58,26,0.15);border-bottom:1px solid var(--border2);
+  padding:10px 24px;font-size:12px;color:#888;display:flex;gap:24px;flex-wrap:wrap;
+}
+.info-bar .tag{display:inline-flex;align-items:center;gap:6px;}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+.dot-safe{background:var(--safe);}
+.dot-mid1{background:var(--mid1);}
+.dot-mid2{background:var(--mid2);}
+.dot-danger{background:var(--danger);}
+
+/* ── 主區 ── */
+.main-wrap{padding:20px 24px;max-width:1200px;margin:0 auto;}
+.section-title{
+  color:var(--gold);font-size:13px;font-weight:700;letter-spacing:2px;
+  margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border2);
+  display:flex;align-items:center;gap:8px;
+}
+.section-title .src-note{
+  margin-left:auto;font-size:10px;font-weight:400;color:#555;letter-spacing:0;
+}
+.src-note.from-json{color:#44aa66;}
+.src-note.from-builtin{color:#886644;}
+
+/* ── 機率表格 ── */
+.rate-table-wrap{overflow-x:auto;margin-bottom:32px;}
+table.rate-table{
+  width:100%;border-collapse:collapse;font-size:12px;
+  background:var(--panel);
+}
+table.rate-table th{
+  background:linear-gradient(180deg,#2a1c0a 0%,#1a1206 100%);
+  color:var(--gold2);font-weight:700;padding:8px 10px;
+  border:1px solid var(--border2);white-space:nowrap;
+  text-align:center;letter-spacing:1px;
+}
+table.rate-table th.col-level{width:80px;}
+table.rate-table th.col-main{background:linear-gradient(180deg,#1e1e1e 0%,#141414 100%);color:#aaa;}
+table.rate-table th.col-normal{color:var(--text);}
+table.rate-table th.col-blessed{color:#f0d060;}
+table.rate-table th.col-cursed{color:#cc44cc;}
+
+table.rate-table td{
+  padding:7px 10px;border:1px solid var(--border2);
+  text-align:center;font-family:'Noto Sans Mono',monospace;
+  transition:background 0.1s;
+}
+table.rate-table tr:hover td{background:rgba(90,58,26,0.2);}
+table.rate-table td.level-cell{
+  font-weight:700;color:var(--gold2);font-family:'Noto Serif TC',serif;font-size:13px;
+}
+table.rate-table td.safe-label{color:var(--safe);font-size:10px;vertical-align:middle;}
+
+/* 機率顏色 */
+.r-safe   {color:var(--safe); font-weight:700;}
+.r-high   {color:#66cc44;}
+.r-mid1   {color:var(--mid1);}
+.r-mid2   {color:var(--mid2);}
+.r-danger {color:var(--danger);}
+
+/* 安定行 */
+tr.safe-row td{background:rgba(20,60,20,0.18)!important;}
+tr.safe-row:hover td{background:rgba(20,60,20,0.3)!important;}
+
+/* ── 卷軸加成說明 ── */
+.bonus-card{
+  background:var(--panel2);border:1px solid var(--border2);
+  padding:14px 18px;margin-bottom:20px;font-size:12px;
+  display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
+}
+.bonus-item{text-align:center;}
+.bonus-name{font-size:11px;color:#888;margin-bottom:4px;}
+.bonus-val{font-size:16px;font-weight:700;}
+.bonus-val.normal{color:var(--text);}
+.bonus-val.blessed{color:var(--gold2);}
+.bonus-val.cursed{color:#cc44cc;}
+.bonus-note{font-size:10px;color:#555;margin-top:3px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="page-header">
+    <div>
+      <div class="page-title">⚡ 精煉機率表</div>
+      <div class="page-sub">Refining Probability Table</div>
+    </div>
+    <button class="back-btn" @click="goBack">← 回到遊戲</button>
+  </div>
+
+  <div class="info-bar">
+    <span class="tag"><span class="dot dot-safe"></span>100% 安定範圍</span>
+    <span class="tag"><span class="dot dot-mid1"></span>44%~77% 注意</span>
+    <span class="tag"><span class="dot dot-mid2"></span>11%~33% 高風險</span>
+    <span class="tag"><span class="dot dot-danger"></span>≤5% 極限挑戰</span>
+    <span style="margin-left:auto;font-size:11px;align-self:center;">數值顯示至小數6位 │ 失敗時裝備可能降級或損毀</span>
+  </div>
+
+  <div class="main-wrap" v-if="loaded">
+
+    <!-- 卷軸加成說明 -->
+    <div class="section-title" style="margin-top:4px;">📜 卷軸加成說明</div>
+    <div class="bonus-card">
+      <div class="bonus-item">
+        <div class="bonus-name">普通卷軸</div>
+        <div class="bonus-val normal">+{{ rates.scroll_bonus.normal }}%</div>
+        <div class="bonus-note">成功固定 +1，失敗直接爆炸</div>
+      </div>
+      <div class="bonus-item">
+        <div class="bonus-name">✨ 祝福卷軸</div>
+        <div class="bonus-val blessed">+{{ rates.scroll_bonus.blessed }}%</div>
+        <div class="bonus-note">成功 +1 或 +2（各50%），失敗爆炸</div>
+      </div>
+      <div class="bonus-item">
+        <div class="bonus-name">💀 詛咒卷軸</div>
+        <div class="bonus-val cursed">+{{ rates.scroll_bonus.cursed }}%</div>
+        <div class="bonus-note">成功扣 -1，失敗必爆炸</div>
+      </div>
+    </div>
+
+    <!-- 武器表 -->
+    <div class="section-title">
+      ⚔ 武器精煉機率（{{ rates.weapon.name }}）
+      <span class="src-note" :class="jsonLoaded ? 'from-json' : 'from-builtin'">
+        {{ jsonLoaded ? '📄 來自 refine_rates.json' : '⚠ 使用內建預設值（JSON 載入失敗）' }}
+      </span>
+    </div>
+    <div class="rate-table-wrap">
+      <table class="rate-table">
+        <thead>
+          <tr>
+            <th class="col-level" rowspan="2">精煉等級</th>
+            <th class="col-main" rowspan="2">基礎成功率</th>
+            <th colspan="3">含卷軸加成後成功率</th>
+            <th rowspan="2" style="width:70px;">狀態</th>
+          </tr>
+          <tr>
+            <th class="col-normal">普通卷軸</th>
+            <th class="col-blessed">✨ 祝福</th>
+            <th class="col-cursed">💀 詛咒</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in rates.weapon.rates" :key="r.from"
+              :class="{'safe-row': r.safe}">
+            <td class="level-cell">+{{r.from}} → +{{r.to}}</td>
+            <td :class="rateClass(r.base)">{{ fmt(r.base) }}%</td>
+            <td :class="rateClass(clamp(r.base + rates.scroll_bonus.normal))">
+              {{ fmt(clamp(r.base + rates.scroll_bonus.normal)) }}%
+            </td>
+            <td :class="rateClass(clamp(r.base + rates.scroll_bonus.blessed))">
+              {{ fmt(clamp(r.base + rates.scroll_bonus.blessed)) }}%
+            </td>
+            <td :class="rateClass(clamp(r.base + rates.scroll_bonus.cursed))">
+              {{ fmt(clamp(r.base + rates.scroll_bonus.cursed)) }}%
+            </td>
+            <td class="safe-label">{{ r.safe ? '✔ 安定' : '' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 防具表 -->
+    <div class="section-title">
+      🛡 防具精煉機率（{{ rates.armor.name }}）
+    </div>
+    <div class="rate-table-wrap">
+      <table class="rate-table">
+        <thead>
+          <tr>
+            <th class="col-level" rowspan="2">精煉等級</th>
+            <th class="col-main" rowspan="2">基礎成功率</th>
+            <th colspan="3">含卷軸加成後成功率</th>
+            <th rowspan="2" style="width:70px;">狀態</th>
+          </tr>
+          <tr>
+            <th class="col-normal">普通卷軸</th>
+            <th class="col-blessed">✨ 祝福</th>
+            <th class="col-cursed">💀 詛咒</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in rates.armor.rates" :key="r.from"
+              :class="{'safe-row': r.safe}">
+            <td class="level-cell">+{{r.from}} → +{{r.to}}</td>
+            <td :class="rateClass(r.base)">{{ fmt(r.base) }}%</td>
+            <td :class="rateClass(clamp(r.base + rates.scroll_bonus.normal))">
+              {{ fmt(clamp(r.base + rates.scroll_bonus.normal)) }}%
+            </td>
+            <td :class="rateClass(clamp(r.base + rates.scroll_bonus.blessed))">
+              {{ fmt(clamp(r.base + rates.scroll_bonus.blessed)) }}%
+            </td>
+            <td :class="rateClass(clamp(r.base + rates.scroll_bonus.cursed))">
+              {{ fmt(clamp(r.base + rates.scroll_bonus.cursed)) }}%
+            </td>
+            <td class="safe-label">{{ r.safe ? '✔ 安定' : '' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="padding:10px 0;font-size:11px;color:#444;text-align:right;">
+      * 詛咒卷軸成功時扣 -1（不會超過100%上限，但詛咒結果仍為扣級）<br>
+      * 祝福卷軸成功時 50% 機率 +1、50% 機率 +2<br>
+      * 機率來源：{{ jsonLoaded ? 'refine_rates.json（可由開發者修改）' : '程式內建（refine_rates.json 未找到）' }}
+    </div>
+  </div>
+
+  <div v-else style="padding:60px;text-align:center;color:#555;font-size:14px;">
+    載入機率資料中…
+  </div>
+</div>
+
+<script>
+const { createApp, ref, onMounted } = Vue;
+
+// 內建預設值（當 JSON 載入失敗時使用）
+const BUILTIN = {
+  scroll_bonus: { normal: 0, blessed: 20, cursed: 40 },
+  weapon: {
+    name: '武器', safe_level: 6,
+    rates: [
+      {from:0,to:1,base:100,safe:true},{from:1,to:2,base:100,safe:true},
+      {from:2,to:3,base:100,safe:true},{from:3,to:4,base:100,safe:true},
+      {from:4,to:5,base:100,safe:true},{from:5,to:6,base:100,safe:true},
+      {from:6,to:7,base:77,safe:false},{from:7,to:8,base:66,safe:false},
+      {from:8,to:9,base:55,safe:false},{from:9,to:10,base:44,safe:false},
+      {from:10,to:11,base:33,safe:false},{from:11,to:12,base:22,safe:false},
+      {from:12,to:13,base:11,safe:false},{from:13,to:14,base:5,safe:false},
+      {from:14,to:15,base:5,safe:false},{from:15,to:16,base:5,safe:false},
+      {from:16,to:17,base:5,safe:false},{from:17,to:18,base:5,safe:false},
+      {from:18,to:19,base:5,safe:false},{from:19,to:20,base:5,safe:false},
+    ]
+  },
+  armor: {
+    name: '防具', safe_level: 4,
+    rates: [
+      {from:0,to:1,base:100,safe:true},{from:1,to:2,base:100,safe:true},
+      {from:2,to:3,base:100,safe:true},{from:3,to:4,base:100,safe:true},
+      {from:4,to:5,base:77,safe:false},{from:5,to:6,base:66,safe:false},
+      {from:6,to:7,base:55,safe:false},{from:7,to:8,base:44,safe:false},
+      {from:8,to:9,base:33,safe:false},{from:9,to:10,base:22,safe:false},
+      {from:10,to:11,base:11,safe:false},{from:11,to:12,base:5,safe:false},
+      {from:12,to:13,base:5,safe:false},{from:13,to:14,base:5,safe:false},
+      {from:14,to:15,base:5,safe:false},{from:15,to:16,base:5,safe:false},
+      {from:16,to:17,base:5,safe:false},{from:17,to:18,base:5,safe:false},
+      {from:18,to:19,base:5,safe:false},{from:19,to:20,base:5,safe:false},
+    ]
+  }
+};
+
+createApp({
+  setup() {
+    const rates = ref(BUILTIN);
+    const loaded = ref(false);
+    const jsonLoaded = ref(false);
+
+    function clamp(v) { return Math.min(100, Math.max(0, v)); }
+    function fmt(v) { return Number(v).toFixed(6); }
+    function rateClass(v) {
+      if (v >= 100) return 'r-safe';
+      if (v >= 44)  return 'r-high';
+      if (v >= 22)  return 'r-mid1';
+      if (v >= 11)  return 'r-mid2';
+      return 'r-danger';
+    }
+
+    function goBack() {
+      if (document.referrer && document.referrer !== '') history.back();
+      else window.location.href = 'lineage.html';
+    }
+
+    onMounted(async () => {
+      try {
+        const res = await fetch('refine_rates.json');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        // 驗證結構
+        if (data.weapon?.rates && data.armor?.rates && data.scroll_bonus) {
+          rates.value = data;
+          jsonLoaded.value = true;
+        }
+      } catch (e) {
+        console.warn('refine_rates.json 載入失敗，使用內建值:', e.message);
+      }
+      loaded.value = true;
+    });
+
+    return { rates, loaded, jsonLoaded, clamp, fmt, rateClass, goBack };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

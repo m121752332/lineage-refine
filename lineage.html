@@ -1,0 +1,1882 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>天堂：經典版</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.4.21/vue.global.prod.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --gold:#c8a84b;--gold2:#f0d060;--dark:#0a0704;--panel:#150e06;
+  --panel2:#1c1208;--border:#6a4420;--border2:#3a2010;--text:#e8d5a0;
+  --red:#cc2222;--green:#22aa44;--blue:#4488cc;--purple:#9944cc;
+  --panel-glow: inset 0 0 30px rgba(0,0,0,0.6);
+}
+body{background:#000;font-family:'Noto Serif TC',serif;overflow:hidden;width:100vw;height:100vh;}
+canvas{display:block;}
+#app{width:100vw;height:100vh;position:relative;}
+
+/* ===== 遊戲場景 ===== */
+.game-scene{position:absolute;inset:0;background:#000;}
+#gameCanvas{position:absolute;inset:0;z-index:0;}
+
+/* ===== HUD ===== */
+.hud{position:absolute;top:0;left:0;right:0;pointer-events:none;z-index:10;}
+.hud-bar{pointer-events:all;}
+.hud-bar{
+  display:flex;align-items:center;gap:16px;padding:6px 16px;
+  background:rgba(10,7,4,0.92);border-bottom:1px solid var(--border);
+}
+.hud-gold{margin-left:auto;color:var(--gold2);font-size:14px;display:flex;align-items:center;gap:6px;}
+.hud-coin{width:14px;height:14px;border-radius:50%;background:var(--gold);border:2px solid var(--gold2);display:inline-block;}
+.char-name{color:var(--text);font-size:14px;}
+
+/* ===== 對話框 ===== */
+.dialog-box{
+  position:absolute;top:56px;left:20px;
+  width:390px;height:545px;
+  display:flex;flex-direction:column;
+  background:rgba(10,7,4,0.97);border:2px solid var(--border);
+  padding:14px 18px;pointer-events:all;box-sizing:border-box;
+}
+.dialog-text{flex:1;overflow-y:auto;}
+.dialog-box .dialog-options{margin-top:auto;}
+.dialog-npc-name{color:var(--gold2);font-size:13px;margin-bottom:6px;font-weight:700;}
+.dialog-text{color:var(--text);font-size:13px;line-height:1.8;margin-bottom:10px;}
+.dialog-options{display:flex;gap:8px;flex-wrap:wrap;}
+.dialog-opt{
+  padding:4px 14px;background:var(--panel2);border:1px solid var(--border);
+  color:var(--gold);font-size:12px;font-family:inherit;cursor:pointer;transition:all 0.1s;
+}
+.dialog-opt:hover{background:var(--border);color:var(--gold2);}
+
+/* ===== 商店面板 ===== */
+.shop-panel{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:500px;background:var(--panel);border:2px solid var(--border);
+  pointer-events:all;box-shadow:0 0 40px rgba(0,0,0,0.8);
+  max-height:80vh;display:flex;flex-direction:column;overflow:hidden;
+}
+.shop-panel-body{flex:1;overflow-y:auto;}
+.buyback-footer{
+  flex-shrink:0;border-top:2px solid var(--gold);
+  background:rgba(200,160,0,0.06);padding:10px 14px;
+  display:flex;align-items:center;gap:10px;min-height:52px;
+}
+.panel-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:9px 14px;background:var(--panel2);border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:10;
+}
+.panel-title{color:var(--gold2);font-size:14px;font-weight:700;letter-spacing:2px;}
+.panel-close{
+  background:none;border:1px solid var(--border);color:var(--text);
+  width:22px;height:22px;cursor:pointer;font-size:11px;
+  display:flex;align-items:center;justify-content:center;
+}
+.panel-close:hover{background:var(--red);color:#fff;}
+.shop-tabs{display:flex;border-bottom:1px solid var(--border);}
+.shop-tab{
+  flex:1;padding:7px;text-align:center;color:var(--text);font-size:12px;
+  cursor:pointer;border-bottom:2px solid transparent;background:var(--panel2);
+}
+.shop-tab.active{color:var(--gold2);border-bottom-color:var(--gold);background:var(--panel);}
+.shop-items{padding:6px;}
+.shop-item{
+  display:flex;align-items:center;gap:10px;padding:9px;
+  border:1px solid transparent;cursor:pointer;transition:all 0.1s;margin-bottom:3px;
+}
+.shop-item:hover{background:rgba(90,58,26,0.3);border-color:var(--border);}
+.item-icon{
+  width:40px;height:40px;border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+  background:#0a0a0c;flex-shrink:0;overflow:hidden;
+}
+.item-icon img{display:block;}
+.item-info{flex:1;}
+.item-name{color:var(--text);font-size:12px;margin-bottom:2px;}
+.item-desc{color:#777;font-size:11px;}
+.item-price{color:var(--gold);font-size:12px;white-space:nowrap;}
+
+/* ===== 背包 ===== */
+.inventory-panel{
+  position:absolute;top:50%;right:16px;transform:translateY(-50%);
+  width:280px;background:var(--panel);border:2px solid var(--border);
+  pointer-events:all;max-height:82vh;overflow-y:auto;
+}
+.inv-grid{
+  display:grid;grid-template-columns:repeat(5,1fr);gap:3px;padding:6px;
+}
+.inv-slot{
+  aspect-ratio:1;background:var(--panel2);border:1px solid #3a2510;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;position:relative;transition:all 0.1s;font-size:16px;
+}
+.inv-slot:hover{border-color:var(--gold);}
+.inv-slot.selected{border-color:var(--gold2);background:rgba(90,58,26,0.4);}
+.enhance-badge{position:absolute;bottom:1px;right:2px;font-size:8px;color:var(--gold2);font-weight:700;text-shadow:1px 1px 0 #000;}
+.item-count{position:absolute;top:1px;right:2px;font-size:8px;color:#aaa;}
+.inv-detail{padding:8px 10px;border-top:1px solid var(--border);}
+.inv-actions{padding:6px 8px;border-top:1px solid var(--border);}
+.inv-btn{
+  width:100%;padding:5px;background:var(--panel2);border:1px solid var(--border);
+  color:var(--text);font-size:11px;font-family:inherit;cursor:pointer;margin-bottom:3px;
+  transition:all 0.1s;
+}
+.inv-btn:hover{background:var(--border);}
+.inv-btn.gold-btn{border-color:#8B6914;color:var(--gold2);}
+.inv-btn.green-btn{border-color:#226644;color:#44cc66;}
+.inv-btn.green-btn:hover{background:#226644;}
+.inv-btn.blue-btn{border-color:#224488;color:#6699ff;}
+
+/* 背包工具列 */
+.inv-toolbar{
+  padding:4px 10px;display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px solid var(--border);background:var(--panel2);flex-wrap:wrap;gap:4px;
+}
+.inv-toolbar select{
+  background:var(--panel);border:1px solid var(--border);color:var(--text);
+  font-size:11px;padding:2px 6px;font-family:inherit;outline:none;
+}
+.inv-toolbar select:focus{border-color:var(--gold);}
+.inv-toolbar .stats{
+  color:#888;font-size:11px;display:flex;gap:8px;
+}
+.inv-toolbar .stats span{color:var(--gold2);}
+
+/* ===== 強化面板 ===== */
+.enhance-panel{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:380px;background:var(--panel);border:2px solid var(--border);pointer-events:all;
+}
+.enhance-preview{padding:16px;text-align:center;}
+.enhance-item-display{font-size:48px;margin-bottom:6px;}
+.enhance-item-name{color:var(--gold2);font-size:14px;font-weight:700;margin-bottom:4px;}
+.enhance-level{display:inline-block;padding:2px 12px;border:1px solid var(--gold);color:var(--gold2);font-size:13px;margin-bottom:10px;}
+.enhance-stats{color:var(--text);font-size:12px;line-height:2.2;}
+.rate-section{margin:8px 14px;}
+.rate-label{display:flex;justify-content:space-between;color:#888;font-size:11px;margin-bottom:4px;}
+.rate-track{height:7px;background:var(--panel2);border:1px solid var(--border);overflow:hidden;}
+.rate-fill{height:100%;transition:width 0.3s;}
+.enhance-btns{display:flex;gap:8px;padding:10px 14px 14px;}
+.enhance-btn{flex:1;padding:9px;border:1px solid var(--border);font-size:13px;font-family:inherit;cursor:pointer;}
+.enhance-btn.primary{background:rgba(90,58,26,0.5);color:var(--gold2);}
+.enhance-btn.primary:hover{background:var(--border);}
+.enhance-btn.cancel{background:var(--panel2);color:#888;}
+
+/* ===== 強化特效 ===== */
+.enhance-effect{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center;z-index:200;}
+.effect-ring{width:200px;height:200px;border-radius:50%;border:4px solid var(--gold2);animation:ringExpand 0.8s ease-out forwards;}
+@keyframes ringExpand{0%{transform:scale(0);opacity:1;}100%{transform:scale(3);opacity:0;}}
+.effect-success{position:absolute;font-size:32px;color:var(--gold2);font-weight:700;animation:floatUp 1.2s ease-out forwards;text-shadow:0 0 16px var(--gold);}
+.effect-fail{position:absolute;font-size:32px;color:var(--red);font-weight:700;animation:floatUp 1.2s ease-out forwards;}
+.effect-boom{position:absolute;font-size:72px;animation:boom 0.7s ease-out forwards;}
+@keyframes floatUp{0%{transform:translateY(0);opacity:1;}100%{transform:translateY(-80px);opacity:0;}}
+@keyframes boom{0%{transform:scale(0) rotate(0deg);opacity:1;}50%{transform:scale(1.5) rotate(20deg);}100%{transform:scale(2);opacity:0;}}
+
+/* ===== 消息日誌 ===== */
+.msg-log-wrapper{
+  position:absolute;bottom:10px;left:10px;pointer-events:none;transform-origin:bottom left;
+  display:flex;flex-direction:column;background:rgba(10,7,4,0.86);
+  border:1px solid var(--border);border-radius:4px;overflow:hidden;
+  min-width:160px;max-width:700px;box-shadow:0 4px 20px rgba(0,0,0,0.6);
+  transition:transform 0.15s ease;
+}
+.msg-log{padding:5px 10px;max-height:110px;overflow-y:auto;pointer-events:none;flex:1;}
+.msg-log::-webkit-scrollbar{width:4px;}
+.msg-log::-webkit-scrollbar-track{background:rgba(0,0,0,0.2);}
+.msg-log::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.msg-line{font-size:12px;line-height:1.8;color:var(--text);word-break:break-word;}
+.msg-log-controls{
+  display:flex;align-items:center;justify-content:flex-end;padding:2px 6px 2px 10px;
+  border-top:1px solid var(--border);background:rgba(0,0,0,0.45);
+  pointer-events:all;gap:3px;flex-shrink:0;min-height:28px;
+}
+.msg-log-controls .ctrl-label{color:#888;font-size:10px;margin-right:auto;letter-spacing:0.5px;pointer-events:none;}
+.ctrl-btn{
+  width:26px;height:26px;border:1px solid var(--border);background:rgba(0,0,0,0.35);
+  color:var(--text);font-size:14px;cursor:pointer;border-radius:3px;
+  display:flex;align-items:center;justify-content:center;transition:all 0.15s;
+  font-family:inherit;line-height:1;user-select:none;
+}
+.ctrl-btn:hover{background:rgba(90,58,26,0.6);border-color:var(--gold);color:var(--gold2);}
+.ctrl-btn:active{transform:scale(0.92);}
+.ctrl-btn.reset{color:var(--gold);font-size:13px;}
+.ctrl-btn.reset:hover{color:var(--gold2);}
+.ctrl-scale{color:var(--gold2);font-size:12px;font-weight:700;min-width:22px;text-align:center;pointer-events:none;font-variant-numeric:tabular-nums;}
+.ctrl-divider{color:#444;font-size:10px;margin:0 1px;pointer-events:none;}
+
+.msg-gold{color:var(--gold);}
+.msg-green{color:var(--green);}
+.msg-red{color:var(--red);}
+.msg-purple{color:var(--purple);}
+.msg-blue{color:var(--blue);}
+.msg-white{color:var(--text);}
+
+/* ===== 右上角功能按鈕 ===== */
+.topup-btn{
+  padding:3px 12px;background:rgba(180,120,0,0.25);border:1px solid var(--gold);
+  color:var(--gold2);font-size:12px;font-family:inherit;cursor:pointer;
+  margin-left:12px;transition:all 0.15s;white-space:nowrap;
+}
+.topup-btn:hover{background:rgba(200,160,0,0.35);}
+.topup-btn.nav-btn{margin-left:6px;}
+
+/* ===== 歐林收購視窗 ===== */
+.sell-panel{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:540px;background:var(--panel);border:2px solid var(--border);
+  pointer-events:all;box-shadow:0 0 40px rgba(0,0,0,0.8);
+  max-height:80vh;overflow-y:auto;
+}
+.sell-item-row{
+  display:flex;align-items:center;gap:10px;padding:8px 12px;
+  border:1px solid transparent;cursor:pointer;margin-bottom:2px;transition:all 0.1s;
+}
+.sell-item-row:hover{background:rgba(90,58,26,0.25);border-color:var(--border);}
+.sell-item-row.selected{background:rgba(90,58,26,0.4);border-color:var(--gold);}
+.sell-lv-badge{
+  min-width:36px;text-align:center;padding:2px 6px;font-size:11px;font-weight:700;
+  border:1px solid var(--border);color:var(--gold2);background:var(--panel2);
+}
+.sell-price-col{text-align:right;min-width:110px;}
+.sell-list-price{color:#888;font-size:10px;text-decoration:line-through;}
+.sell-actual-price{color:var(--gold2);font-size:13px;font-weight:700;}
+.sell-premium{font-size:10px;color:#44cc88;}
+
+/* ===== Toast ===== */
+.toast{
+  position:absolute;top:54px;left:50%;transform:translateX(-50%);
+  background:rgba(10,7,4,0.96);border:1px solid var(--border);
+  padding:7px 18px;color:var(--text);font-size:13px;z-index:300;
+  animation:toastIn 0.2s,toastOut 0.3s 2.7s forwards;pointer-events:none;
+}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-8px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+@keyframes toastOut{to{opacity:0;}}
+
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:var(--panel2);}
+::-webkit-scrollbar-thumb{background:var(--border);}
+
+/* ===== 批量購買彈窗 ===== */
+.buy-modal-mask{
+  position:absolute;inset:0;background:rgba(0,0,0,0.65);
+  display:flex;align-items:center;justify-content:center;z-index:400;pointer-events:all;
+}
+.buy-modal{
+  width:340px;background:var(--panel);border:2px solid var(--border);
+  box-shadow:0 0 40px rgba(0,0,0,0.9);
+}
+.buy-modal-item{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);}
+.buy-modal-icon{font-size:28px;width:44px;height:44px;background:var(--panel2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.buy-modal-name{font-size:13px;font-weight:700;margin-bottom:2px;}
+.buy-modal-price{font-size:11px;color:var(--gold);}
+.buy-qty-row{display:flex;align-items:center;gap:0;padding:12px 16px;border-bottom:1px solid var(--border);}
+.buy-qty-label{color:#888;font-size:12px;margin-right:auto;}
+.qty-ctrl{display:flex;align-items:center;gap:0;}
+.qty-ctrl button{
+  width:32px;height:32px;background:var(--panel2);border:1px solid var(--border);
+  color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background 0.1s;
+}
+.qty-ctrl button:hover{background:var(--border);}
+.qty-ctrl input{
+  width:52px;height:32px;background:var(--panel2);border-top:1px solid var(--border);border-bottom:1px solid var(--border);border-left:none;border-right:none;
+  color:var(--gold2);font-size:14px;font-family:inherit;text-align:center;outline:none;
+}
+.buy-total-row{padding:8px 16px 12px;display:flex;align-items:center;justify-content:space-between;}
+.buy-total-label{color:#888;font-size:12px;}
+.buy-total-val{color:var(--gold2);font-size:15px;font-weight:700;}
+.buy-modal-btns{display:flex;border-top:1px solid var(--border);}
+.buy-modal-btn{
+  flex:1;padding:10px;font-size:13px;font-family:inherit;cursor:pointer;border:none;
+  transition:background 0.1s;
+}
+.buy-modal-btn.confirm{background:rgba(90,58,26,0.6);color:var(--gold2);}
+.buy-modal-btn.confirm:hover{background:var(--border);}
+.buy-modal-btn.cancel{background:var(--panel2);color:#888;border-left:1px solid var(--border);}
+.buy-modal-btn.cancel:hover{background:#2a1808;color:var(--text);}
+
+/* ===== 鐵鎚模式 ===== */
+.game-scene.hammer-weapon{ cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Crect x='14' y='18' width='6' height='12' rx='1' fill='%238B6914'/%3E%3Crect x='6' y='8' width='20' height='12' rx='2' fill='%23c0a030'/%3E%3Crect x='6' y='8' width='20' height='5' rx='2' fill='%23d4b840'/%3E%3Ccircle cx='24' cy='12' r='3' fill='%2344aaff' opacity='0.8'/%3E%3C/svg%3E") 6 6, crosshair; }
+.game-scene.hammer-armor{ cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Crect x='14' y='18' width='6' height='12' rx='1' fill='%238B6914'/%3E%3Crect x='6' y='8' width='20' height='12' rx='2' fill='%23c0a030'/%3E%3Crect x='6' y='8' width='20' height='5' rx='2' fill='%23d4b840'/%3E%3Ccircle cx='24' cy='12' r='3' fill='%2344ff88' opacity='0.8'/%3E%3C/svg%3E") 6 6, crosshair; }
+.inv-slot.hammer-target{
+  border-color:var(--gold)!important;
+  box-shadow:0 0 8px rgba(200,160,0,0.6) inset;
+  animation:slotGlow 0.6s ease-in-out infinite alternate;
+}
+.inv-slot.hammer-target:hover{
+  background:rgba(120,80,10,0.7)!important;
+  border-color:var(--gold2)!important;
+}
+@keyframes slotGlow{from{background:rgba(80,50,5,0.3);}to{background:rgba(120,80,10,0.6);}}
+.hammer-cursor-tip{
+  position:fixed;pointer-events:none;z-index:9999;
+  background:rgba(10,7,4,0.92);border:1px solid var(--gold);
+  padding:3px 8px;font-size:11px;color:var(--gold2);
+  white-space:nowrap;transform:translate(16px,-50%);
+  font-family:'Noto Serif TC',serif;
+}
+
+/* ===== 背包切換按鈕 ===== */
+.bag-toggle{
+  position:absolute;top:192px;right:10px;
+  width:40px;height:40px;
+  background:rgba(10,7,4,0.88);border:2px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;cursor:pointer;z-index:20;pointer-events:all;
+  transition:all 0.15s;
+}
+.bag-toggle:hover{
+  background:rgba(90,58,26,0.7);border-color:var(--gold);
+  box-shadow:0 0 8px rgba(200,160,0,0.4);
+}
+
+/* ===== 背包面板限高（顯示 8 列 × 5 行）===== */
+.inv-grid-wrap{
+  max-height:420px;overflow-y:scroll;
+}
+
+/* ===== 強化結果全螢幕彈窗 ===== */
+.result-modal{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  z-index:500;pointer-events:all;
+}
+.result-modal-bg-success{background:rgba(0,20,0,0.85);}
+.result-modal-bg-fail{background:rgba(20,0,0,0.85);}
+.result-modal-bg-boom{background:rgba(30,0,0,0.92);}
+.result-box{
+  text-align:center;padding:40px 60px;
+  border:2px solid var(--border);
+  background:var(--panel);
+  min-width:380px;
+}
+.result-icon{font-size:64px;margin-bottom:16px;display:block;}
+.result-title{font-size:22px;font-weight:700;margin-bottom:12px;letter-spacing:2px;}
+.result-title.success{color:var(--gold2);text-shadow:0 0 20px rgba(240,208,96,0.6);}
+.result-title.fail{color:#ff6644;}
+.result-title.boom{color:#ff2200;text-shadow:0 0 20px rgba(255,34,0,0.8);}
+.result-desc{font-size:14px;color:var(--text);line-height:2;margin-bottom:20px;}
+.result-close{
+  padding:8px 32px;background:var(--panel2);border:1px solid var(--border);
+  color:var(--text);font-size:13px;font-family:inherit;cursor:pointer;
+}
+.result-close:hover{background:var(--border);color:var(--gold2);}
+.result-particles{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+.particle{position:absolute;border-radius:50%;animation:particleFall 1.5s ease-in forwards;}
+@keyframes particleFall{0%{transform:translateY(0) scale(1);opacity:1;}100%{transform:translateY(200px) scale(0);opacity:0;}}
+
+/* ===== 天堂風格強化 ===== */
+.shop-panel,.inventory-panel,.enhance-panel,.buy-modal{
+  box-shadow:0 0 0 1px var(--border2),0 0 40px rgba(0,0,0,0.9),var(--panel-glow);
+  background:linear-gradient(180deg,#1c1408 0%,#120c04 100%);
+}
+.panel-header{
+  background:linear-gradient(90deg,#2a1c0a 0%,#1a1006 100%);
+  border-bottom:1px solid var(--border);
+  padding:10px 14px;
+}
+.panel-title{
+  color:var(--gold2);font-size:13px;font-weight:700;letter-spacing:3px;
+  text-shadow:0 0 8px rgba(240,208,96,0.5);
+}
+.panel-close{
+  background:rgba(0,0,0,0.4);border:1px solid var(--border2);
+  color:#887;border-radius:1px;
+}
+.panel-close:hover{background:var(--red);color:#fff;border-color:#ff4444;}
+
+/* HUD 強化 */
+.hud-bar{
+  background:linear-gradient(180deg,rgba(15,9,3,0.98) 0%,rgba(8,5,1,0.95) 100%);
+  border-bottom:2px solid var(--border2);
+  box-shadow:0 2px 12px rgba(0,0,0,0.8);
+}
+.hud-gold{color:var(--gold2);text-shadow:0 0 6px rgba(200,160,0,0.4);}
+
+/* 對話框 */
+.dialog-box{
+  background:linear-gradient(180deg,#1a1006 0%,#120c04 100%);
+  border:2px solid var(--border);
+  box-shadow:0 0 0 1px var(--border2),0 -4px 20px rgba(0,0,0,0.8);
+}
+.dialog-npc-name{
+  color:var(--gold2);text-shadow:0 0 8px rgba(240,208,96,0.4);
+  border-bottom:1px solid var(--border2);padding-bottom:6px;margin-bottom:8px;
+}
+.dialog-opt{
+  background:rgba(30,18,6,0.9);border:1px solid var(--border2);
+  padding:5px 16px;transition:all 0.1s;
+}
+.dialog-opt:hover{background:var(--border);border-color:var(--gold);color:var(--gold2);}
+.dialog-close{
+  position:absolute;top:8px;right:12px;background:none;border:none;
+  color:var(--gold);font-size:13px;font-family:inherit;cursor:pointer;
+  padding:2px 4px;transition:color 0.1s;
+}
+.dialog-close:hover{color:var(--gold2);text-shadow:0 0 8px rgba(240,208,96,0.5);}
+
+/* 商店/背包 tab */
+.shop-tab{background:rgba(10,7,2,0.8);}
+.shop-tab.active{
+  color:var(--gold2);border-bottom-color:var(--gold);
+  background:linear-gradient(180deg,#2a1c0a 0%,#1a1206 100%);
+}
+.shop-item:hover{background:rgba(80,48,16,0.4);border-color:var(--border);}
+.inv-slot{
+  background:linear-gradient(135deg,#0e0a04 0%,#180e06 100%);
+  border:1px solid #2a1c0c;
+}
+.inv-slot:hover{border-color:var(--gold);box-shadow:inset 0 0 6px rgba(200,160,0,0.2);}
+.inv-slot.selected{
+  border-color:var(--gold2);
+  background:linear-gradient(135deg,#2a1c0a 0%,#1a1004 100%);
+  box-shadow:inset 0 0 8px rgba(200,160,0,0.3);
+}
+.sell-item-row:hover{background:rgba(70,42,12,0.4);border-color:var(--border);}
+.sell-item-row.selected{background:rgba(80,50,10,0.5);border-color:var(--gold);}
+.rate-track{
+  background:linear-gradient(90deg,#0a0704 0%,#150e06 100%);
+  border:1px solid var(--border2);height:8px;
+}
+.toast{
+  background:linear-gradient(180deg,#1a1006 0%,#100a04 100%);
+  border:1px solid var(--border);
+  box-shadow:0 0 0 1px var(--border2),0 4px 16px rgba(0,0,0,0.8);
+}
+.msg-log-wrapper{
+  border:1px solid var(--border2);
+  box-shadow:0 4px 20px rgba(0,0,0,0.7);
+}
+.inventory-panel{overflow-y:auto;}
+
+/* ===== 進場載入畫面 ===== */
+.boot-mask{
+  position:absolute;inset:0;z-index:9000;background:#000;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--gold2);font-size:14px;letter-spacing:3px;
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- 驗證中／載入畫面 -->
+  <div v-if="!ready" class="boot-mask">⚔ 正在進入天堂世界…</div>
+
+  <!-- ===== 遊戲場景 ===== -->
+  <div v-if="ready" class="game-scene"
+    :class="hammerMode.active ? 'hammer-'+hammerMode.target : ''"
+    @keydown.esc="cancelHammer">
+    <canvas id="gameCanvas" ref="canvas"></canvas>
+    <div class="hud">
+      <div class="hud-bar">
+        <span class="char-name">⚔ {{charName}}</span>
+        <div class="hud-gold">
+          <span class="hud-coin"></span>{{fmt(gold)}} 天幣
+          <button class="topup-btn nav-btn" @click="goCashPay">💳 儲值</button>
+          <button class="topup-btn nav-btn" style="border-color:var(--blue);color:#88aaff;" @click="goSetting">⚙ 配置</button>
+          <button class="topup-btn nav-btn" style="border-color:var(--purple);color:#cc99ff;" @click="goRefineTable">📊 機率表</button>
+          <button class="topup-btn nav-btn" style="border-color:#777;color:#bbb;" @click="doLogout">⏏ 登出</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="msg-log-wrapper" ref="msgLogWrapper" :style="{
+      transform: `scale(${msgLogScale / 5})`,
+      transformOrigin: 'bottom left'
+    }">
+      <div class="msg-log" ref="msgLog">
+        <div v-for="(m,i) in messages" :key="i" class="msg-line" :class="'msg-'+m.type">{{m.text}}</div>
+      </div>
+      <div class="msg-log-controls">
+        <span class="ctrl-label">📋</span>
+        <button class="ctrl-btn" @click="changeMsgLogScale(-1)" title="縮小">−</button>
+        <span class="ctrl-scale">{{ msgLogScale }}</span>
+        <button class="ctrl-btn" @click="changeMsgLogScale(1)" title="放大">+</button>
+        <span class="ctrl-divider">│</span>
+        <button class="ctrl-btn reset" @click="resetMsgLogScale" title="重置為預設 (5)">↺</button>
+      </div>
+    </div>
+
+    <!-- 對話框 -->
+    <div v-if="dialog.show" class="dialog-box">
+      <button class="dialog-close" @click="dialog.show=false">Close</button>
+      <div class="dialog-npc-name">【{{dialog.npc}}】</div>
+      <div class="dialog-text">{{dialog.text}}</div>
+      <div class="dialog-options">
+        <button v-for="o in dialog.options" :key="o.label" class="dialog-opt" @click="o.action()">{{o.label}}</button>
+      </div>
+    </div>
+
+    <!-- 商店 -->
+    <div v-if="ui.shop" class="shop-panel">
+      <div class="panel-header">
+        <span class="panel-title">歐 林 商 店</span>
+        <button class="panel-close" @click="ui.shop=false">✕</button>
+      </div>
+      <div class="shop-tabs">
+        <div v-for="t in TABS" :key="t.id" class="shop-tab" :class="{active:shopTab===t.id}" @click="shopTab=t.id">{{t.label}}</div>
+      </div>
+      <div v-if="shopTab!=='buyback'" class="shop-items shop-panel-body">
+        <div v-for="item in shopItems[shopTab]" :key="item.id" class="shop-item" @click="openBuy(item)">
+          <div class="item-icon">
+            <img v-if="item.svgIcon" :src="item.svgIcon" width="34" height="34" style="image-rendering:crisp-edges;"/>
+            <span v-else>{{item.icon}}</span>
+          </div>
+          <div class="item-info">
+            <div class="item-name" :style="{color:item.color||'var(--text)'}">{{item.name}}</div>
+            <div class="item-desc">{{item.desc}}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="item-price">{{fmt(item.price)}} 天幣</div>
+            <div style="font-size:10px;color:#666;margin-top:2px;">點擊購買</div>
+          </div>
+        </div>
+        <div style="padding:6px 12px;border-top:1px solid var(--border);font-size:11px;color:#666;">
+          點擊商品可選購買數量 │ 餘額: <span style="color:var(--gold)">{{fmt(gold)}}</span> 天幣
+        </div>
+      </div>
+
+      <template v-if="shopTab==='buyback'">
+        <div class="shop-panel-body">
+          <div style="padding:8px 14px;background:var(--panel2);border-bottom:1px solid var(--border);font-size:11px;color:#888;">
+            歐林以下列牌價收購精煉裝備。實際售價若高於牌價則以售價成交。
+            <span style="color:var(--gold);cursor:pointer;margin-left:6px;" @click="goSetting">⚙ 調整配置</span>
+          </div>
+          <div style="padding:6px 14px 2px;color:var(--gold);font-size:11px;font-weight:700;">⚔ 武器收購</div>
+          <div v-for="lv in maxEnhLevel" :key="'w'+lv" class="sell-item-row"
+            :class="{selected: olinSellSelect.type==='weapon'&&olinSellSelect.lv===lv}"
+            @click="selectOlinSell('weapon',lv)">
+            <div class="item-icon" style="font-size:16px;">⚔</div>
+            <div class="sell-lv-badge">+{{lv}}</div>
+            <div style="flex:1;color:var(--text);font-size:12px;">大馬士革刀 +{{lv}}</div>
+            <div class="sell-price-col">
+              <div v-if="getActualSellPrice('weapon',lv)>getListPrice('weapon',lv)" class="sell-list-price">牌價 {{fmt(getListPrice('weapon',lv))}}</div>
+              <div class="sell-actual-price">{{fmt(getActualSellPrice('weapon',lv))}} 天幣</div>
+              <div v-if="getActualSellPrice('weapon',lv)>getListPrice('weapon',lv)" class="sell-premium">↑ 高於牌價</div>
+            </div>
+          </div>
+          <div style="padding:10px 14px 2px;color:var(--gold);font-size:11px;font-weight:700;border-top:1px solid var(--border);">🛡 防具收購</div>
+          <div v-for="lv in maxEnhLevel" :key="'a'+lv" class="sell-item-row"
+            :class="{selected: olinSellSelect.type==='armor'&&olinSellSelect.lv===lv}"
+            @click="selectOlinSell('armor',lv)">
+            <div class="item-icon" style="font-size:16px;">🧥</div>
+            <div class="sell-lv-badge">+{{lv}}</div>
+            <div style="flex:1;color:var(--text);font-size:12px;">隱身斗篷 +{{lv}}</div>
+            <div class="sell-price-col">
+              <div v-if="getActualSellPrice('armor',lv)>getListPrice('armor',lv)" class="sell-list-price">牌價 {{fmt(getListPrice('armor',lv))}}</div>
+              <div class="sell-actual-price">{{fmt(getActualSellPrice('armor',lv))}} 天幣</div>
+              <div v-if="getActualSellPrice('armor',lv)>getListPrice('armor',lv)" class="sell-premium">↑ 高於牌價</div>
+            </div>
+          </div>
+        </div>
+        <!-- 固定底部出售區 -->
+        <div class="buyback-footer">
+          <template v-if="olinSellSelect.type">
+            <span style="color:var(--text);font-size:12px;">
+              {{olinSellSelect.type==='weapon'?'⚔ 大馬士革刀':'🛡 隱身斗篷'}} +{{olinSellSelect.lv}}
+            </span>
+            <span style="color:var(--gold2);font-size:13px;font-weight:700;flex:1;">
+              → {{fmt(getActualSellPrice(olinSellSelect.type,olinSellSelect.lv))}} 天幣
+            </span>
+            <button style="padding:6px 20px;background:var(--panel2);border:1px solid var(--gold);color:var(--gold2);font-size:13px;font-family:inherit;cursor:pointer;"
+              @click="doOlinSell">賣給歐林</button>
+            <button style="padding:6px 10px;background:none;border:1px solid var(--border);color:#888;font-size:12px;font-family:inherit;cursor:pointer;"
+              @click="olinSellSelect.type=''">取消</button>
+          </template>
+          <span v-else style="color:#555;font-size:12px;width:100%;text-align:center;">← 點選上方裝備後，在此確認出售</span>
+        </div>
+      </template>
+    </div>
+
+    <!-- 批量購買彈窗 -->
+    <div v-if="buyModal.show" class="buy-modal-mask" @click.self="buyModal.show=false">
+      <div class="buy-modal">
+        <div class="panel-header">
+          <span class="panel-title">購　買</span>
+          <button class="panel-close" @click="buyModal.show=false">✕</button>
+        </div>
+        <div class="buy-modal-item">
+          <div class="buy-modal-icon">
+            <img v-if="buyModal.item?.svgIcon" :src="buyModal.item.svgIcon" width="36" height="36" style="image-rendering:pixelated;"/>
+            <span v-else style="font-size:28px;">{{buyModal.item?.icon}}</span>
+          </div>
+          <div>
+            <div class="buy-modal-name" :style="{color:buyModal.item?.color||'var(--text)'}">{{buyModal.item?.name}}</div>
+            <div class="buy-modal-price">單價：{{fmt(buyModal.item?.price||0)}} 天幣</div>
+            <div style="font-size:10px;color:#666;margin-top:2px;">{{buyModal.item?.desc}}</div>
+          </div>
+        </div>
+        <div class="buy-qty-row">
+          <span class="buy-qty-label">購買數量</span>
+          <div class="qty-ctrl">
+            <button @click="buyModal.qty=Math.max(1,buyModal.qty-10)">«</button>
+            <button @click="buyModal.qty=Math.max(1,buyModal.qty-1)">－</button>
+            <input type="number" v-model.number="buyModal.qty" min="1" max="99"
+              @change="buyModal.qty=Math.min(99,Math.max(1,buyModal.qty||1))"/>
+            <button @click="buyModal.qty=Math.min(99,buyModal.qty+1)">＋</button>
+            <button @click="buyModal.qty=Math.min(99,buyModal.qty+10)">»</button>
+          </div>
+        </div>
+        <div class="buy-total-row">
+          <span class="buy-total-label">合計費用</span>
+          <span class="buy-total-val">{{fmt((buyModal.item?.price||0)*buyModal.qty)}} 天幣</span>
+        </div>
+        <div v-if="(buyModal.item?.price||0)*buyModal.qty > gold"
+          style="padding:0 16px 8px;font-size:11px;color:var(--red);text-align:right;">
+          ⚠ 天幣不足（持有 {{fmt(gold)}}）
+        </div>
+        <div class="buy-modal-btns">
+          <button class="buy-modal-btn confirm" @click="confirmBuy"
+            :style="{opacity:(buyModal.item?.price||0)*buyModal.qty>gold?0.4:1}">確認購買</button>
+          <button class="buy-modal-btn cancel" @click="buyModal.show=false">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 游標跟隨提示 -->
+    <div v-if="hammerMode.active && cursorPos.visible" class="hammer-cursor-tip"
+      :style="{left:cursorPos.x+'px', top:cursorPos.y+'px'}">
+      🔨 {{hammerMode.scrollName}} ─ 點擊{{hammerMode.target==='weapon'?'武器':'防具'}} │ Esc取消
+    </div>
+
+    <!-- 背包切換按鈕（小地圖下方，開啟背包時隱藏） -->
+    <div v-if="!ui.inventory" class="bag-toggle" @click="ui.inventory=true" title="背包 (I)">🎒</div>
+
+    <!-- 背包 -->
+    <div v-if="ui.inventory" class="inventory-panel">
+      <div class="panel-header">
+        <span class="panel-title">背　包</span>
+        <button class="panel-close" @click="closeInventory">✕</button>
+      </div>
+      <!-- 工具列：排序 + 統計 -->
+      <div class="inv-toolbar">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="color:#888;font-size:11px;">排序：</span>
+          <select v-model="sortType" @change="applySort">
+            <option value="default">預設</option>
+            <option value="type">依類型</option>
+            <option value="name">依名稱</option>
+            <option value="enhance">依強化等級</option>
+          </select>
+        </div>
+        <div class="stats">
+          物品：<span>{{ totalItems }}</span> 件
+          │ 占用：<span>{{ usedSlots }}</span>/100 格
+        </div>
+      </div>
+      <div class="inv-grid-wrap">
+      <div class="inv-grid">
+        <div v-for="(slot,i) in inventory" :key="i" class="inv-slot"
+          :class="{
+            selected: selSlot===i && !hammerMode.active,
+            'hammer-target': hammerMode.active && slot && slot.type===hammerMode.target && slot.enhance<maxEnhLevel
+          }"
+          :title="hammerMode.active && slot && slot.type===hammerMode.target ? '🔨 點擊強化 '+slot.name : ''"
+          @click="onSlotClick(i)">
+          <template v-if="slot">
+            <img v-if="slot.svgIcon" :src="slot.svgIcon" :width="slot.enhance>0?26:32" :height="slot.enhance>0?26:32" style="image-rendering:crisp-edges;display:block;"/>
+            <span v-else>{{slot.icon}}</span>
+            <span v-if="slot.enhance>0" class="enhance-badge">+{{slot.enhance}}</span>
+            <span v-if="(slot.count||1)>1" class="item-count">{{slot.count}}</span>
+          </template>
+        </div>
+      </div>
+      </div><!-- /inv-grid-wrap -->
+      <div v-if="selItem" class="inv-detail">
+        <div style="color:var(--gold2);font-size:12px;font-weight:700;">
+          {{selItem.name}}<span v-if="selItem.enhance>0" style="color:var(--gold)"> +{{selItem.enhance}}</span>
+        </div>
+        <div style="color:#777;font-size:11px;margin-top:2px;">{{selItem.desc}}</div>
+        <div v-if="selItem.type==='weapon'||selItem.type==='armor'" style="color:var(--text);font-size:11px;margin-top:4px;">
+          強化加成: +{{selItem.enhance}} │ 費用: {{fmt(enhCost(selItem))}} 天幣
+        </div>
+        <div v-if="selItem.type==='scroll_weapon'||selItem.type==='scroll_armor'" style="font-size:11px;margin-top:4px;">
+          <div :style="{color:selItem.blessed?'var(--gold2)':selItem.cursed?'#cc44cc':'#888',marginBottom:'6px'}">
+            {{selItem.blessed?'🌟 祝福卷軸：成功+1或+2（各50%）':selItem.cursed?'💀 詛咒卷軸：成功反-1，失敗必爆炸':'📜 普通卷軸：成功固定+1，失敗直接爆炸'}}
+          </div>
+          <div style="color:var(--gold);font-size:12px;padding:5px 8px;border:1px dashed var(--border);text-align:center;cursor:pointer;"
+            @click="activateHammer(selItem.type==='scroll_weapon'?'weapon':'armor')">
+            🔨 點此啟動鐵鎚，再敲{{selItem.type==='scroll_weapon'?'武器':'防具'}}格子
+          </div>
+        </div>
+      </div>
+      <div class="inv-actions" v-if="selItem">
+        <button v-if="selItem.type==='weapon'||selItem.type==='armor'" class="inv-btn gold-btn" @click="openEnhance">⚡ 直接強化（無卷軸）</button>
+        <button class="inv-btn green-btn" @click="sellItem">💰 出售 (+{{fmt(sellPrice(selItem))}} 天幣)</button>
+      </div>
+      <div v-if="hammerMode.active" style="padding:8px 10px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+        <span style="color:var(--gold);font-size:12px;">🔨 游標已是鐵鎚，點發光格子強化</span>
+        <button class="inv-btn" style="width:auto;padding:3px 10px;margin:0;font-size:11px;color:#888;" @click="cancelHammer">取消</button>
+      </div>
+    </div>
+
+    <!-- 強化結果彈窗 -->
+    <div v-if="result.show" class="result-modal" :class="'result-modal-bg-'+result.type" @click="result.show=false">
+      <div class="result-box">
+        <span class="result-icon">
+          {{result.type==='success'?'✨':result.type==='boom'?'💥':'💨'}}
+        </span>
+        <div class="result-title" :class="result.type">
+          {{result.type==='success'?'精 煉 成 功':result.type==='boom'?'裝 備 損 毀':'精 煉 失 敗'}}
+        </div>
+        <div class="result-desc" v-html="result.desc"></div>
+        <button class="result-close" @click.stop="result.show=false">確　定</button>
+      </div>
+    </div>
+
+    <!-- 強化 -->
+    <div v-if="ui.enhance&&enhTgt" class="enhance-panel">
+      <div class="panel-header">
+        <span class="panel-title">裝　備　強　化</span>
+        <button class="panel-close" @click="ui.enhance=false">✕</button>
+      </div>
+      <div class="enhance-preview">
+        <div class="enhance-item-display">
+          <img v-if="enhTgt.svgIcon" :src="enhTgt.svgIcon" width="48" height="48" style="image-rendering:pixelated;"/>
+          <span v-else>{{enhTgt.icon}}</span>
+        </div>
+        <div class="enhance-item-name">{{enhTgt.name}}</div>
+        <div class="enhance-level">+{{enhTgt.enhance}} → +{{enhTgt.enhance+1}}</div>
+        <div class="enhance-stats">
+          <template v-if="isSafe(enhTgt)">
+            <span style="color:var(--green)">✔ 安定範圍，強化必定成功</span>
+          </template>
+          <template v-else>
+            失敗率: <span style="color:var(--red)">{{(100-successRate(enhTgt,scrollBonus())).toFixed(1)}}%</span><br>
+            <span style="color:#ff8844;font-size:11px;">⚠ 失敗可能導致裝備降級或損毀！</span>
+          </template>
+        </div>
+      </div>
+      <div class="rate-section">
+        <div class="rate-label">
+          <span>成功機率</span>
+          <span :style="{color:successRate(enhTgt,scrollBonus())>60?'var(--green)':'var(--red)'}">
+            {{isSafe(enhTgt)?'100':successRate(enhTgt,scrollBonus()).toFixed(1)}}%
+          </span>
+        </div>
+        <div class="rate-track">
+          <div class="rate-fill" :style="{
+            width:(isSafe(enhTgt)?100:successRate(enhTgt,scrollBonus()))+'%',
+            background:successRate(enhTgt,scrollBonus())>60?'var(--green)':'var(--red)'
+          }"></div>
+        </div>
+      </div>
+      <div v-if="scrollBonus()>0" style="padding:4px 14px;font-size:11px;color:#9966ff;text-align:center;">
+        ✨ 已偵測到卷軸加成 +{{scrollBonus()}}%
+      </div>
+      <div style="padding:4px 14px 2px;font-size:11px;color:#888;text-align:center;">
+        費用: <span style="color:var(--gold)">{{fmt(enhCost(enhTgt))}} 天幣</span>
+      </div>
+      <div class="enhance-btns">
+        <button class="enhance-btn cancel" @click="ui.enhance=false">取消</button>
+        <button class="enhance-btn primary" @click="doEnhance">⚡ 開始強化</button>
+      </div>
+    </div>
+
+    <div v-if="toast.show" class="toast" :style="{borderColor:toast.color}">{{toast.text}}</div>
+  </div>
+
+</div>
+<script>
+const {createApp,ref,reactive,computed,nextTick,onMounted,watch} = Vue;
+createApp({
+  setup(){
+    // ─── 狀態 ───
+    const ready=ref(false);
+    const charName=ref(''), gold=ref(10000000);
+    const canvas=ref(null), msgLog=ref(null);
+    const messages=ref([]);
+    const shopTab=ref('weapon');
+    const selSlot=ref(null);
+    const enhTgt=ref(null);
+    const ui=reactive({shop:false,inventory:false,enhance:false});
+    const dialog=reactive({show:false,npc:'',text:'',options:[]});
+    const eff=reactive({show:false,type:'',lv:0});
+    const toast=reactive({show:false,text:'',color:'var(--border)'});
+    // 背包擴充至 100 格
+    const inventory=ref(Array(100).fill(null));
+    // 排序類型
+    const sortType=ref('default');
+    // 批量購買彈窗
+    const buyModal=reactive({show:false,item:null,qty:1});
+    // 鐵鎚模式
+    const hammerMode=reactive({active:false,scrollIdx:-1,target:'',scrollName:'',isCursed:false,isBlessed:false});
+    // 強化結果彈窗
+    const result=reactive({show:false,type:'success',desc:''});
+    // 游標浮動位置
+    const cursorPos=reactive({x:0,y:0,visible:false});
+    // 歐林收購選取
+    const olinSellSelect=reactive({type:'',lv:0});
+
+    // ─── 消息日誌縮放比率 (1~10, 預設5) ───
+    const msgLogScale=ref(5);
+
+    // ─── 配置檔 (牌價 + 自訂售價) ───
+    const DEFAULT_WEAPON_LIST=[
+      10000,20000,30000,40000,50000,60000,70000,
+      100000,200000,400000,600000,1000000,
+      2000000,3500000,6000000,10000000,18000000,30000000,50000000,100000000
+    ];
+    const DEFAULT_ARMOR_LIST=[
+      10000,20000,30000,40000,50000,60000,70000,
+      100000,200000,400000,600000,1000000,
+      2000000,3500000,6000000,10000000,18000000,30000000,50000000,100000000
+    ];
+    const priceConfig=reactive({
+      twdRate:100,
+      weapon:{
+        list:[...DEFAULT_WEAPON_LIST],
+        sell:Array(20).fill(0),
+      },
+      armor:{
+        list:[...DEFAULT_ARMOR_LIST],
+        sell:Array(20).fill(0),
+      },
+    });
+
+    // ─── 地圖常數 ───
+    let ctx=null;
+    let wx=330, wy=370;
+    const SPEED=2.0;
+    let walkFrame=0,walkTick=0;
+    let keys={};
+    const TILE=32;
+    const WALL=36;
+    const rooms=[
+      {x:80,  y:180, w:500, h:380},
+      {x:508, y:280, w:200, h:160},
+      {x:636, y:120, w:320, h:280},
+      {x:250, y:524, w:140, h:180},
+      {x:150, y:668, w:340, h:220},
+    ];
+    function walkable(rx,ry){
+      // 障礙物（書櫃、書架）不可進入
+      for(const o of obstacles){
+        if(rx>=o.x && rx<=o.x+o.w && ry>=o.y && ry<=o.y+o.h) return false;
+      }
+      for(const r of rooms){
+        if(rx>=r.x+WALL && rx<=r.x+r.w-WALL &&
+           ry>=r.y+WALL && ry<=r.y+r.h-WALL) return true;
+      }
+      return false;
+    }
+    const OLIN_X=796, OLIN_Y=260;
+    // 家具碰撞箱：玩家無法走入書櫃／書架所在位置
+    const obstacles=[
+      {x:706,        y:150,        w:180, h:74},   // 書櫃（歐林後方）
+      {x:OLIN_X-30,  y:OLIN_Y+12,  w:60,  h:42},   // 書架（歐林前方）
+    ];
+
+    // ─── 商店資料 ───
+    const TABS=[{id:'weapon',label:'⚔ 武器'},{id:'armor',label:'🛡 防具'},{id:'scroll',label:'📜 道具'},{id:'buyback',label:'💰 收購'}];
+    const shopItems={
+      weapon:[{id:'damascus',name:'大馬士革刀',icon:'⚔',svgIcon:'data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2040%2040%27%20width%3D%2740%27%20height%3D%2740%27%3E%0A%20%20%3C%21--%20%E9%BB%91%E5%BA%95%20%2B%20%E6%B7%B1%E7%81%B0%E9%82%8A%E6%A1%86%20--%3E%0A%20%20%3Crect%20x%3D%270%27%20y%3D%270%27%20width%3D%2740%27%20height%3D%2740%27%20fill%3D%27%230a0a0c%27/%3E%0A%20%20%3Crect%20x%3D%270.5%27%20y%3D%270.5%27%20width%3D%2739%27%20height%3D%2739%27%20fill%3D%27none%27%20stroke%3D%27%23484840%27%20stroke-width%3D%271%27/%3E%0A%20%20%3C%21--%20%E5%8A%8D%E8%BA%AB%E4%B8%BB%E9%AB%94%EF%BC%88%E5%B7%A6%E4%B8%8B%E2%86%92%E5%8F%B3%E4%B8%8A%E5%B0%8D%E8%A7%92%EF%BC%8C%E7%B4%B0%E9%95%B7%EF%BC%89%20--%3E%0A%20%20%3C%21--%20%E5%8A%8D%E5%B0%96%20--%3E%0A%20%20%3Cline%20x1%3D%2734%27%20y1%3D%275%27%20x2%3D%277%27%20y2%3D%2734%27%20stroke%3D%27%23787870%27%20stroke-width%3D%271.5%27%20stroke-linecap%3D%27round%27/%3E%0A%20%20%3C%21--%20%E5%8A%8D%E8%BA%AB%E9%AB%98%E5%85%89%EF%BC%88%E5%81%8F%E5%B7%A6%E7%9A%84%E4%BA%AE%E6%A2%9D%EF%BC%89%20--%3E%0A%20%20%3Cline%20x1%3D%2733%27%20y1%3D%276%27%20x2%3D%278%27%20y2%3D%2733%27%20stroke%3D%27%23c8c8b8%27%20stroke-width%3D%270.7%27%20stroke-linecap%3D%27round%27%20opacity%3D%270.9%27/%3E%0A%20%20%3C%21--%20%E5%8A%8D%E8%BA%AB%E6%9A%97%E9%82%8A%20--%3E%0A%20%20%3Cline%20x1%3D%2735%27%20y1%3D%276%27%20x2%3D%278%27%20y2%3D%2735%27%20stroke%3D%27%23303030%27%20stroke-width%3D%270.8%27%20stroke-linecap%3D%27round%27%20opacity%3D%270.7%27/%3E%0A%20%20%3C%21--%20%E6%BC%B8%E5%B1%A4%E5%8A%8D%E8%BA%AB%EF%BC%88%E4%B8%AD%E6%AE%B5%E5%8A%A0%E5%AF%AC%EF%BC%89%20--%3E%0A%20%20%3Cpolygon%20points%3D%2732%2C7%2034%2C5%2036%2C7%2011%2C35%207%2C35%209%2C33%27%20fill%3D%27%23585850%27%20opacity%3D%270.5%27/%3E%0A%20%20%3C%21--%20%E5%8D%81%E5%AD%97%E8%AD%B7%E6%89%8B%20--%3E%0A%20%20%3Cline%20x1%3D%2712%27%20y1%3D%2726%27%20x2%3D%2718%27%20y2%3D%2720%27%20stroke%3D%27%23a09080%27%20stroke-width%3D%273%27%20stroke-linecap%3D%27round%27/%3E%0A%20%20%3Cline%20x1%3D%2715%27%20y1%3D%2723%27%20x2%3D%279%27%20y2%3D%2729%27%20stroke%3D%27%23a09080%27%20stroke-width%3D%273%27%20stroke-linecap%3D%27round%27/%3E%0A%20%20%3C%21--%20%E8%AD%B7%E6%89%8B%E4%BA%AE%E5%85%89%20--%3E%0A%20%20%3Cline%20x1%3D%2712%27%20y1%3D%2726%27%20x2%3D%2718%27%20y2%3D%2720%27%20stroke%3D%27%23d0c0a0%27%20stroke-width%3D%271%27%20stroke-linecap%3D%27round%27%20opacity%3D%270.8%27/%3E%0A%20%20%3C%21--%20%E5%8A%8D%E6%9F%84%20--%3E%0A%20%20%3Cline%20x1%3D%279%27%20y1%3D%2729%27%20x2%3D%276%27%20y2%3D%2735%27%20stroke%3D%27%23706050%27%20stroke-width%3D%272.5%27%20stroke-linecap%3D%27round%27/%3E%0A%20%20%3Cline%20x1%3D%279%27%20y1%3D%2729%27%20x2%3D%276%27%20y2%3D%2735%27%20stroke%3D%27%23b09878%27%20stroke-width%3D%271%27%20stroke-linecap%3D%27round%27%20opacity%3D%270.7%27/%3E%0A%20%20%3C%21--%20%E5%8A%8D%E6%9F%84%E6%9C%AB%E7%AB%AF%E5%9C%93%E9%A0%AD%20--%3E%0A%20%20%3Ccircle%20cx%3D%276%27%20cy%3D%2735%27%20r%3D%272%27%20fill%3D%27%23908070%27/%3E%0A%20%20%3Ccircle%20cx%3D%276%27%20cy%3D%2735%27%20r%3D%271%27%20fill%3D%27%23c0b090%27/%3E%0A%20%20%3C%21--%20%E5%8A%8D%E5%B0%96%E7%99%BC%E5%85%89%E9%BB%9E%20--%3E%0A%20%20%3Ccircle%20cx%3D%2734%27%20cy%3D%275%27%20r%3D%271.2%27%20fill%3D%27%23e0e0d0%27%20opacity%3D%270.9%27/%3E%0A%3C/svg%3E',type:'weapon',price:1000,desc:'不容易損壞的特殊劍。',color:'#e8d5a0'}],
+      armor: [{id:'cloak',name:'隱身斗篷',icon:'🧥',svgIcon:'data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2040%2040%27%20width%3D%2740%27%20height%3D%2740%27%3E%0A%20%20%3C%21--%20%E9%BB%91%E5%BA%95%20--%3E%0A%20%20%3Crect%20x%3D%270%27%20y%3D%270%27%20width%3D%2740%27%20height%3D%2740%27%20fill%3D%27%23080808%27/%3E%0A%20%20%3Crect%20x%3D%270.5%27%20y%3D%270.5%27%20width%3D%2739%27%20height%3D%2739%27%20fill%3D%27none%27%20stroke%3D%27%23404040%27%20stroke-width%3D%270.8%27/%3E%0A%0A%20%20%3C%21--%20%E6%96%97%E7%AF%B7%E4%B8%BB%E9%AB%94%E5%B7%A6%E5%8D%8A%EF%BC%88%E7%99%BD/%E6%B7%BA%E7%81%B0%EF%BC%89%20--%3E%0A%20%20%3Cpolygon%20points%3D%2720%2C4%205%2C10%204%2C36%2020%2C32%27%20fill%3D%27%23d8d8d8%27/%3E%0A%20%20%3C%21--%20%E6%96%97%E7%AF%B7%E4%B8%BB%E9%AB%94%E5%8F%B3%E5%8D%8A%20--%3E%0A%20%20%3Cpolygon%20points%3D%2720%2C4%2035%2C10%2036%2C36%2020%2C32%27%20fill%3D%27%23b8b8b8%27/%3E%0A%0A%20%20%3C%21--%20%E4%B8%AD%E5%A4%AE%E7%B8%AB%E7%B7%9A%EF%BC%88%E6%B7%B1%E8%89%B2%E5%88%86%E5%89%B2%E7%B7%9A%EF%BC%89%20--%3E%0A%20%20%3Cline%20x1%3D%2720%27%20y1%3D%274%27%20x2%3D%2720%27%20y2%3D%2736%27%20stroke%3D%27%23181818%27%20stroke-width%3D%271.4%27/%3E%0A%0A%20%20%3C%21--%20%E5%B8%BD%E5%85%9C%E8%BC%AA%E5%BB%93%EF%BC%88%E4%B8%8A%E6%96%B9%EF%BC%89%20--%3E%0A%20%20%3Cpath%20d%3D%27M14%2C5%20C14%2C2%2026%2C2%2026%2C5%20C26%2C9%2023%2C11%2020%2C11%20C17%2C11%2014%2C9%2014%2C5%20Z%27%0A%20%20%20%20fill%3D%27%23c8c8c8%27%20stroke%3D%27%23181818%27%20stroke-width%3D%270.8%27/%3E%0A%20%20%3C%21--%20%E5%B8%BD%E5%85%9C%E5%85%A7%E5%81%B4%E6%9A%97%E9%83%A8%20--%3E%0A%20%20%3Cpath%20d%3D%27M16%2C5%20C16%2C3.5%2024%2C3.5%2024%2C5%20C24%2C8%2022%2C9.5%2020%2C9.5%20C18%2C9.5%2016%2C8%2016%2C5%20Z%27%0A%20%20%20%20fill%3D%27%23202020%27/%3E%0A%20%20%3C%21--%20%E5%B8%BD%E5%85%9C%E7%B8%AB%E7%B7%9A%20--%3E%0A%20%20%3Cline%20x1%3D%2720%27%20y1%3D%274%27%20x2%3D%2720%27%20y2%3D%2711%27%20stroke%3D%27%23181818%27%20stroke-width%3D%271.2%27/%3E%0A%0A%20%20%3C%21--%20%E5%B7%A6%E5%8D%8A%E8%A1%A3%E8%A4%B6%E9%99%B0%E5%BD%B1%E7%B7%9A%20--%3E%0A%20%20%3Cline%20x1%3D%2711%27%20y1%3D%2712%27%20x2%3D%279%27%20%20y2%3D%2733%27%20stroke%3D%27%23b0b0b0%27%20stroke-width%3D%270.5%27%20opacity%3D%270.6%27/%3E%0A%20%20%3Cline%20x1%3D%2715%27%20y1%3D%2711%27%20x2%3D%2713%27%20y2%3D%2733%27%20stroke%3D%27%23a8a8a8%27%20stroke-width%3D%270.4%27%20opacity%3D%270.5%27/%3E%0A%0A%20%20%3C%21--%20%E5%8F%B3%E5%8D%8A%E8%A1%A3%E8%A4%B6%20--%3E%0A%20%20%3Cline%20x1%3D%2725%27%20y1%3D%2711%27%20x2%3D%2727%27%20y2%3D%2733%27%20stroke%3D%27%23989898%27%20stroke-width%3D%270.5%27%20opacity%3D%270.6%27/%3E%0A%20%20%3Cline%20x1%3D%2729%27%20y1%3D%2712%27%20x2%3D%2731%27%20y2%3D%2733%27%20stroke%3D%27%23909090%27%20stroke-width%3D%270.4%27%20opacity%3D%270.5%27/%3E%0A%0A%20%20%3C%21--%20%E5%B7%A6%E8%82%A9%E9%AB%98%E5%85%89%20--%3E%0A%20%20%3Cpath%20d%3D%27M5%2C10%20C8%2C8%2012%2C7%2014%2C8%27%20fill%3D%27none%27%20stroke%3D%27%23f0f0f0%27%20stroke-width%3D%270.8%27%20opacity%3D%270.7%27/%3E%0A%20%20%3C%21--%20%E5%8F%B3%E8%82%A9%E9%AB%98%E5%85%89%20--%3E%0A%20%20%3Cpath%20d%3D%27M35%2C10%20C32%2C8%2028%2C7%2026%2C8%27%20fill%3D%27none%27%20stroke%3D%27%23d8d8d8%27%20stroke-width%3D%270.8%27%20opacity%3D%270.5%27/%3E%0A%0A%20%20%3C%21--%20%E4%B8%8B%E6%93%BA%E9%82%8A%E7%B7%A3%EF%BC%88%E5%B7%A6%EF%BC%89%20--%3E%0A%20%20%3Cpath%20d%3D%27M4%2C36%20C8%2C38%2014%2C37%2020%2C36%27%20fill%3D%27none%27%20stroke%3D%27%23c0c0c0%27%20stroke-width%3D%270.8%27/%3E%0A%20%20%3C%21--%20%E4%B8%8B%E6%93%BA%E9%82%8A%E7%B7%A3%EF%BC%88%E5%8F%B3%EF%BC%89%20--%3E%0A%20%20%3Cpath%20d%3D%27M20%2C36%20C26%2C37%2032%2C38%2036%2C36%27%20fill%3D%27none%27%20stroke%3D%27%23a0a0a0%27%20stroke-width%3D%270.8%27/%3E%0A%0A%20%20%3C%21--%20%E6%95%B4%E9%AB%94%E5%A4%96%E6%A1%86%E9%82%8A%E7%B7%A3%E7%B7%9A%20--%3E%0A%20%20%3Cpolyline%20points%3D%275%2C10%204%2C36%27%20stroke%3D%27%23282828%27%20stroke-width%3D%270.6%27/%3E%0A%20%20%3Cpolyline%20points%3D%2735%2C10%2036%2C36%27%20stroke%3D%27%23282828%27%20stroke-width%3D%270.6%27/%3E%0A%3C/svg%3E',type:'armor',price:1000,desc:'穿了後怪物和其他玩家看不到。不主動攻擊或行為才會有效果。',color:'#c0c0d0'}],
+      scroll:[
+        {id:'sw',name:'武器卷軸',    icon:'📜',svgIcon:'data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2032%2032%27%20width%3D%2732%27%20height%3D%2732%27%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3CradialGradient%20id%3D%27pg%27%20cx%3D%2740%25%27%20cy%3D%2735%25%27%20r%3D%2760%25%27%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%270%25%27%20stop-color%3D%27%23787068%27/%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%27100%25%27%20stop-color%3D%27%23504840%27/%3E%0A%20%20%20%20%3C/radialGradient%3E%0A%20%20%3C/defs%3E%0A%20%20%3C%21--%20%E7%9F%B3%E6%9D%BF%E5%BA%95%20--%3E%0A%20%20%3Crect%20x%3D%271%27%20y%3D%271%27%20width%3D%2730%27%20height%3D%2730%27%20rx%3D%273%27%20fill%3D%27url%28%23pg%29%27%20stroke%3D%27%23403830%27%20stroke-width%3D%271.5%27/%3E%0A%20%20%3C%21--%20%E5%9B%9B%E8%A7%92%E8%A3%9D%E9%A3%BE%E9%87%98%20--%3E%0A%20%20%3Ccircle%20cx%3D%274%27%20cy%3D%274%27%20r%3D%271.5%27%20fill%3D%27%23908070%27/%3E%0A%20%20%3Ccircle%20cx%3D%2728%27%20cy%3D%274%27%20r%3D%271.5%27%20fill%3D%27%23908070%27/%3E%0A%20%20%3Ccircle%20cx%3D%274%27%20cy%3D%2728%27%20r%3D%271.5%27%20fill%3D%27%23908070%27/%3E%0A%20%20%3Ccircle%20cx%3D%2728%27%20cy%3D%2728%27%20r%3D%271.5%27%20fill%3D%27%23908070%27/%3E%0A%20%20%3C%21--%20%E5%85%AB%E8%8A%92%E6%98%9F%E4%B8%BB%E9%AB%94%20--%3E%0A%20%20%3Cpolygon%20points%3D%2716%2C5%2017.8%2C13.5%2025%2C10%2019.5%2C16%2025%2C22%2017.8%2C18.5%2016%2C27%2014.2%2C18.5%207%2C22%2012.5%2C16%207%2C10%2014.2%2C13.5%27%20%0A%20%20%20%20fill%3D%27%23d8d0c0%27%20opacity%3D%270.85%27/%3E%0A%20%20%3C%21--%20%E6%98%9F%E4%B8%AD%E5%BF%83%E5%9C%93%20--%3E%0A%20%20%3Ccircle%20cx%3D%2716%27%20cy%3D%2716%27%20r%3D%273.5%27%20fill%3D%27%23f0e8d8%27%20opacity%3D%270.9%27/%3E%0A%20%20%3Ccircle%20cx%3D%2716%27%20cy%3D%2716%27%20r%3D%271.8%27%20fill%3D%27white%27%20opacity%3D%270.6%27/%3E%0A%20%20%3C%21--%20%E7%9F%B3%E6%9D%BF%E6%A9%AB%E7%B4%8B%20--%3E%0A%20%20%3Cline%20x1%3D%273%27%20y1%3D%2710%27%20x2%3D%2729%27%20y2%3D%2710%27%20stroke%3D%27%23403830%27%20stroke-width%3D%270.4%27%20opacity%3D%270.3%27/%3E%0A%20%20%3Cline%20x1%3D%273%27%20y1%3D%2722%27%20x2%3D%2729%27%20y2%3D%2722%27%20stroke%3D%27%23403830%27%20stroke-width%3D%270.4%27%20opacity%3D%270.3%27/%3E%0A%3C/svg%3E',type:'scroll_weapon',price:10000,desc:'武器強化，普通卷軸'},
+        {id:'sa',name:'防具卷軸',    icon:'📋',svgIcon:'data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2032%2032%27%20width%3D%2732%27%20height%3D%2732%27%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3CradialGradient%20id%3D%27pg%27%20cx%3D%2740%25%27%20cy%3D%2735%25%27%20r%3D%2760%25%27%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%270%25%27%20stop-color%3D%27%23686878%27/%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%27100%25%27%20stop-color%3D%27%23484858%27/%3E%0A%20%20%20%20%3C/radialGradient%3E%0A%20%20%3C/defs%3E%0A%20%20%3C%21--%20%E7%9F%B3%E6%9D%BF%E5%BA%95%20--%3E%0A%20%20%3Crect%20x%3D%271%27%20y%3D%271%27%20width%3D%2730%27%20height%3D%2730%27%20rx%3D%273%27%20fill%3D%27url%28%23pg%29%27%20stroke%3D%27%23383848%27%20stroke-width%3D%271.5%27/%3E%0A%20%20%3C%21--%20%E5%9B%9B%E8%A7%92%E8%A3%9D%E9%A3%BE%E9%87%98%20--%3E%0A%20%20%3Ccircle%20cx%3D%274%27%20cy%3D%274%27%20r%3D%271.5%27%20fill%3D%27%23808898%27/%3E%0A%20%20%3Ccircle%20cx%3D%2728%27%20cy%3D%274%27%20r%3D%271.5%27%20fill%3D%27%23808898%27/%3E%0A%20%20%3Ccircle%20cx%3D%274%27%20cy%3D%2728%27%20r%3D%271.5%27%20fill%3D%27%23808898%27/%3E%0A%20%20%3Ccircle%20cx%3D%2728%27%20cy%3D%2728%27%20r%3D%271.5%27%20fill%3D%27%23808898%27/%3E%0A%20%20%3C%21--%20%E5%85%AB%E8%8A%92%E6%98%9F%E4%B8%BB%E9%AB%94%20--%3E%0A%20%20%3Cpolygon%20points%3D%2716%2C5%2017.8%2C13.5%2025%2C10%2019.5%2C16%2025%2C22%2017.8%2C18.5%2016%2C27%2014.2%2C18.5%207%2C22%2012.5%2C16%207%2C10%2014.2%2C13.5%27%20%0A%20%20%20%20fill%3D%27%23c0c8d8%27%20opacity%3D%270.85%27/%3E%0A%20%20%3C%21--%20%E6%98%9F%E4%B8%AD%E5%BF%83%E5%9C%93%20--%3E%0A%20%20%3Ccircle%20cx%3D%2716%27%20cy%3D%2716%27%20r%3D%273.5%27%20fill%3D%27%23d8e4f0%27%20opacity%3D%270.9%27/%3E%0A%20%20%3Ccircle%20cx%3D%2716%27%20cy%3D%2716%27%20r%3D%271.8%27%20fill%3D%27white%27%20opacity%3D%270.6%27/%3E%0A%20%20%3C%21--%20%E7%9F%B3%E6%9D%BF%E6%A9%AB%E7%B4%8B%20--%3E%0A%20%20%3Cline%20x1%3D%273%27%20y1%3D%2710%27%20x2%3D%2729%27%20y2%3D%2710%27%20stroke%3D%27%23383848%27%20stroke-width%3D%270.4%27%20opacity%3D%270.3%27/%3E%0A%20%20%3Cline%20x1%3D%273%27%20y1%3D%2722%27%20x2%3D%2729%27%20y2%3D%2722%27%20stroke%3D%27%23383848%27%20stroke-width%3D%270.4%27%20opacity%3D%270.3%27/%3E%0A%3C/svg%3E',type:'scroll_armor', price:10000,desc:'防具強化，普通卷軸'},
+        {id:'bw',name:'祝福武器卷軸',icon:'✨',svgIcon:'data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2032%2032%27%20width%3D%2732%27%20height%3D%2732%27%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3CradialGradient%20id%3D%27pg%27%20cx%3D%2740%25%27%20cy%3D%2735%25%27%20r%3D%2760%25%27%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%270%25%27%20stop-color%3D%27%23c8c0b0%27/%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%27100%25%27%20stop-color%3D%27%239a9088%27/%3E%0A%20%20%20%20%3C/radialGradient%3E%0A%20%20%3C/defs%3E%0A%20%20%3C%21--%20%E7%9F%B3%E6%9D%BF%E5%BA%95%20--%3E%0A%20%20%3Crect%20x%3D%271%27%20y%3D%271%27%20width%3D%2730%27%20height%3D%2730%27%20rx%3D%273%27%20fill%3D%27url%28%23pg%29%27%20stroke%3D%27%23706050%27%20stroke-width%3D%271.5%27/%3E%0A%20%20%3C%21--%20%E5%9B%9B%E8%A7%92%E8%A3%9D%E9%A3%BE%E9%87%98%20--%3E%0A%20%20%3Ccircle%20cx%3D%274%27%20cy%3D%274%27%20r%3D%271.5%27%20fill%3D%27%23c8a840%27/%3E%0A%20%20%3Ccircle%20cx%3D%2728%27%20cy%3D%274%27%20r%3D%271.5%27%20fill%3D%27%23c8a840%27/%3E%0A%20%20%3Ccircle%20cx%3D%274%27%20cy%3D%2728%27%20r%3D%271.5%27%20fill%3D%27%23c8a840%27/%3E%0A%20%20%3Ccircle%20cx%3D%2728%27%20cy%3D%2728%27%20r%3D%271.5%27%20fill%3D%27%23c8a840%27/%3E%0A%20%20%3C%21--%20%E5%85%AB%E8%8A%92%E6%98%9F%E4%B8%BB%E9%AB%94%20--%3E%0A%20%20%3Cpolygon%20points%3D%2716%2C5%2017.8%2C13.5%2025%2C10%2019.5%2C16%2025%2C22%2017.8%2C18.5%2016%2C27%2014.2%2C18.5%207%2C22%2012.5%2C16%207%2C10%2014.2%2C13.5%27%20%0A%20%20%20%20fill%3D%27%23d4a020%27%20opacity%3D%270.85%27/%3E%0A%20%20%3C%21--%20%E6%98%9F%E4%B8%AD%E5%BF%83%E5%9C%93%20--%3E%0A%20%20%3Ccircle%20cx%3D%2716%27%20cy%3D%2716%27%20r%3D%273.5%27%20fill%3D%27%23f0c840%27%20opacity%3D%270.9%27/%3E%0A%20%20%3Ccircle%20cx%3D%2716%27%20cy%3D%2716%27%20r%3D%271.8%27%20fill%3D%27white%27%20opacity%3D%270.6%27/%3E%0A%20%20%3C%21--%20%E7%9F%B3%E6%9D%BF%E6%A9%AB%E7%B4%8B%20--%3E%0A%20%20%3Cline%20x1%3D%273%27%20y1%3D%2710%27%20x2%3D%2729%27%20y2%3D%2710%27%20stroke%3D%27%23706050%27%20stroke-width%3D%270.4%27%20opacity%3D%270.3%27/%3E%0A%20%20%3Cline%20x1%3D%273%27%20y1%3D%2722%27%20x2%3D%2729%27%20y2%3D%2722%27%20stroke%3D%27%23706050%27%20stroke-width%3D%270.4%27%20opacity%3D%270.3%27/%3E%0A%3C/svg%3E',type:'scroll_weapon',price:20000,desc:'祝福：成功+1或+2，失敗爆炸',blessed:true,color:'#f0d060'},
+        {id:'ba',name:'祝福防具卷軸',icon:'🌟',svgIcon:'data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2032%2032%27%20width%3D%2732%27%20height%3D%2732%27%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3CradialGradient%20id%3D%27pg%27%20cx%3D%2740%25%27%20cy%3D%2735%25%27%20r%3D%2760%25%27%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%270%25%27%20stop-color%3D%27%23c4ccd4%27/%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%27100%25%27%20stop-color%3D%27%238c9aa4%27/%3E%0A%20%20%20%20%3C/radialGradient%3E%0A%20%20%3C/defs%3E%0A%20%20%3C%21--%20%E7%9F%B3%E6%9D%BF%E5%BA%95%20--%3E%0A%20%20%3Crect%20x%3D%271%27%20y%3D%271%27%20width%3D%2730%27%20height%3D%2730%27%20rx%3D%273%27%20fill%3D%27url%28%23pg%29%27%20stroke%3D%27%23607080%27%20stroke-width%3D%271.5%27/%3E%0A%20%20%3C%21--%20%E5%9B%9B%E8%A7%92%E8%A3%9D%E9%A3%BE%E9%87%98%20--%3E%0A%20%20%3Ccircle%20cx%3D%274%27%20cy%3D%274%27%20r%3D%271.5%27%20fill%3D%27%2390b8d0%27/%3E%0A%20%20%3Ccircle%20cx%3D%2728%27%20cy%3D%274%27%20r%3D%271.5%27%20fill%3D%27%2390b8d0%27/%3E%0A%20%20%3Ccircle%20cx%3D%274%27%20cy%3D%2728%27%20r%3D%271.5%27%20fill%3D%27%2390b8d0%27/%3E%0A%20%20%3Ccircle%20cx%3D%2728%27%20cy%3D%2728%27%20r%3D%271.5%27%20fill%3D%27%2390b8d0%27/%3E%0A%20%20%3C%21--%20%E5%85%AB%E8%8A%92%E6%98%9F%E4%B8%BB%E9%AB%94%20--%3E%0A%20%20%3Cpolygon%20points%3D%2716%2C5%2017.8%2C13.5%2025%2C10%2019.5%2C16%2025%2C22%2017.8%2C18.5%2016%2C27%2014.2%2C18.5%207%2C22%2012.5%2C16%207%2C10%2014.2%2C13.5%27%20%0A%20%20%20%20fill%3D%27%238ab0d0%27%20opacity%3D%270.85%27/%3E%0A%20%20%3C%21--%20%E6%98%9F%E4%B8%AD%E5%BF%83%E5%9C%93%20--%3E%0A%20%20%3Ccircle%20cx%3D%2716%27%20cy%3D%2716%27%20r%3D%273.5%27%20fill%3D%27%23b8d8f0%27%20opacity%3D%270.9%27/%3E%0A%20%20%3Ccircle%20cx%3D%2716%27%20cy%3D%2716%27%20r%3D%271.8%27%20fill%3D%27white%27%20opacity%3D%270.6%27/%3E%0A%20%20%3C%21--%20%E7%9F%B3%E6%9D%BF%E6%A9%AB%E7%B4%8B%20--%3E%0A%20%20%3Cline%20x1%3D%273%27%20y1%3D%2710%27%20x2%3D%2729%27%20y2%3D%2710%27%20stroke%3D%27%23607080%27%20stroke-width%3D%270.4%27%20opacity%3D%270.3%27/%3E%0A%20%20%3Cline%20x1%3D%273%27%20y1%3D%2722%27%20x2%3D%2729%27%20y2%3D%2722%27%20stroke%3D%27%23607080%27%20stroke-width%3D%270.4%27%20opacity%3D%270.3%27/%3E%0A%3C/svg%3E',type:'scroll_armor', price:20000,desc:'祝福：成功+1或+2，失敗爆炸',blessed:true,color:'#aaddff'},
+        {id:'cw',name:'詛咒武器卷軸',icon:'💀',svgIcon:'data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2032%2032%27%20width%3D%2732%27%20height%3D%2732%27%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3CradialGradient%20id%3D%27pg%27%20cx%3D%2740%25%27%20cy%3D%2735%25%27%20r%3D%2760%25%27%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%270%25%27%20stop-color%3D%27%23b04030%27/%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%27100%25%27%20stop-color%3D%27%237a2820%27/%3E%0A%20%20%20%20%3C/radialGradient%3E%0A%20%20%3C/defs%3E%0A%20%20%3C%21--%20%E7%9F%B3%E6%9D%BF%E5%BA%95%20--%3E%0A%20%20%3Crect%20x%3D%271%27%20y%3D%271%27%20width%3D%2730%27%20height%3D%2730%27%20rx%3D%273%27%20fill%3D%27url%28%23pg%29%27%20stroke%3D%27%235a1810%27%20stroke-width%3D%271.5%27/%3E%0A%20%20%3C%21--%20%E5%9B%9B%E8%A7%92%E8%A3%9D%E9%A3%BE%E9%87%98%20--%3E%0A%20%20%3Ccircle%20cx%3D%274%27%20cy%3D%274%27%20r%3D%271.5%27%20fill%3D%27%23cc4422%27/%3E%0A%20%20%3Ccircle%20cx%3D%2728%27%20cy%3D%274%27%20r%3D%271.5%27%20fill%3D%27%23cc4422%27/%3E%0A%20%20%3Ccircle%20cx%3D%274%27%20cy%3D%2728%27%20r%3D%271.5%27%20fill%3D%27%23cc4422%27/%3E%0A%20%20%3Ccircle%20cx%3D%2728%27%20cy%3D%2728%27%20r%3D%271.5%27%20fill%3D%27%23cc4422%27/%3E%0A%20%20%3C%21--%20%E5%85%AB%E8%8A%92%E6%98%9F%E4%B8%BB%E9%AB%94%20--%3E%0A%20%20%3Cpolygon%20points%3D%2716%2C5%2017.8%2C13.5%2025%2C10%2019.5%2C16%2025%2C22%2017.8%2C18.5%2016%2C27%2014.2%2C18.5%207%2C22%2012.5%2C16%207%2C10%2014.2%2C13.5%27%20%0A%20%20%20%20fill%3D%27%23cc2200%27%20opacity%3D%270.85%27/%3E%0A%20%20%3C%21--%20%E6%98%9F%E4%B8%AD%E5%BF%83%E5%9C%93%20--%3E%0A%20%20%3Ccircle%20cx%3D%2716%27%20cy%3D%2716%27%20r%3D%273.5%27%20fill%3D%27%23ff4422%27%20opacity%3D%270.9%27/%3E%0A%20%20%3Ccircle%20cx%3D%2716%27%20cy%3D%2716%27%20r%3D%271.8%27%20fill%3D%27white%27%20opacity%3D%270.6%27/%3E%0A%20%20%3C%21--%20%E7%9F%B3%E6%9D%BF%E6%A9%AB%E7%B4%8B%20--%3E%0A%20%20%3Cline%20x1%3D%273%27%20y1%3D%2710%27%20x2%3D%2729%27%20y2%3D%2710%27%20stroke%3D%27%235a1810%27%20stroke-width%3D%270.4%27%20opacity%3D%270.3%27/%3E%0A%20%20%3Cline%20x1%3D%273%27%20y1%3D%2722%27%20x2%3D%2729%27%20y2%3D%2722%27%20stroke%3D%27%235a1810%27%20stroke-width%3D%270.4%27%20opacity%3D%270.3%27/%3E%0A%3C/svg%3E',type:'scroll_weapon',price:30000,desc:'詛咒：成功倒扣-1，失敗必爆炸',cursed:true,color:'#ff6644'},
+        {id:'ca',name:'詛咒防具卷軸',icon:'☠', svgIcon:'data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2032%2032%27%20width%3D%2732%27%20height%3D%2732%27%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3CradialGradient%20id%3D%27pg%27%20cx%3D%2740%25%27%20cy%3D%2735%25%27%20r%3D%2760%25%27%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%270%25%27%20stop-color%3D%27%23b84828%27/%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%27100%25%27%20stop-color%3D%27%2388301c%27/%3E%0A%20%20%20%20%3C/radialGradient%3E%0A%20%20%3C/defs%3E%0A%20%20%3C%21--%20%E7%9F%B3%E6%9D%BF%E5%BA%95%20--%3E%0A%20%20%3Crect%20x%3D%271%27%20y%3D%271%27%20width%3D%2730%27%20height%3D%2730%27%20rx%3D%273%27%20fill%3D%27url%28%23pg%29%27%20stroke%3D%27%235a1810%27%20stroke-width%3D%271.5%27/%3E%0A%20%20%3C%21--%20%E5%9B%9B%E8%A7%92%E8%A3%9D%E9%A3%BE%E9%87%98%20--%3E%0A%20%20%3Ccircle%20cx%3D%274%27%20cy%3D%274%27%20r%3D%271.5%27%20fill%3D%27%23993311%27/%3E%0A%20%20%3Ccircle%20cx%3D%2728%27%20cy%3D%274%27%20r%3D%271.5%27%20fill%3D%27%23993311%27/%3E%0A%20%20%3Ccircle%20cx%3D%274%27%20cy%3D%2728%27%20r%3D%271.5%27%20fill%3D%27%23993311%27/%3E%0A%20%20%3Ccircle%20cx%3D%2728%27%20cy%3D%2728%27%20r%3D%271.5%27%20fill%3D%27%23993311%27/%3E%0A%20%20%3C%21--%20%E5%85%AB%E8%8A%92%E6%98%9F%E4%B8%BB%E9%AB%94%20--%3E%0A%20%20%3Cpolygon%20points%3D%2716%2C5%2017.8%2C13.5%2025%2C10%2019.5%2C16%2025%2C22%2017.8%2C18.5%2016%2C27%2014.2%2C18.5%207%2C22%2012.5%2C16%207%2C10%2014.2%2C13.5%27%20%0A%20%20%20%20fill%3D%27%23882288%27%20opacity%3D%270.85%27/%3E%0A%20%20%3C%21--%20%E6%98%9F%E4%B8%AD%E5%BF%83%E5%9C%93%20--%3E%0A%20%20%3Ccircle%20cx%3D%2716%27%20cy%3D%2716%27%20r%3D%273.5%27%20fill%3D%27%23aa44aa%27%20opacity%3D%270.9%27/%3E%0A%20%20%3Ccircle%20cx%3D%2716%27%20cy%3D%2716%27%20r%3D%271.8%27%20fill%3D%27white%27%20opacity%3D%270.6%27/%3E%0A%20%20%3C%21--%20%E7%9F%B3%E6%9D%BF%E6%A9%AB%E7%B4%8B%20--%3E%0A%20%20%3Cline%20x1%3D%273%27%20y1%3D%2710%27%20x2%3D%2729%27%20y2%3D%2710%27%20stroke%3D%27%235a1810%27%20stroke-width%3D%270.4%27%20opacity%3D%270.3%27/%3E%0A%20%20%3Cline%20x1%3D%273%27%20y1%3D%2722%27%20x2%3D%2729%27%20y2%3D%2722%27%20stroke%3D%27%235a1810%27%20stroke-width%3D%270.4%27%20opacity%3D%270.3%27/%3E%0A%3C/svg%3E',type:'scroll_armor', price:30000,desc:'詛咒：成功倒扣-1，失敗必爆炸',cursed:true,color:'#cc66ff'},
+      ]
+    };
+
+    // ─── 強化系統 ───
+    const W_SAFE=6, A_SAFE=4;
+    const maxEnhLevel=ref(12);
+    const selItem=computed(()=>selSlot.value!=null?inventory.value[selSlot.value]:null);
+    function isSafe(it){if(!it)return true;return it.enhance<(it.type==='weapon'?W_SAFE:A_SAFE);}
+    function successRate(it,bonus=0){
+      if(!it)return 100;
+      if(isSafe(it))return 100;
+      const over=it.enhance-(it.type==='weapon'?W_SAFE:A_SAFE)+1;
+      return Math.min(100,Math.max(5,88-over*11)+bonus);
+    }
+    function scrollBonus(){
+      for(const s of inventory.value){
+        if(!s||!enhTgt.value)continue;
+        if(s.type===`scroll_${enhTgt.value.type}`){
+          return s.blessed?20:s.cursed?40:0;
+        }
+      }
+      return 0;
+    }
+    function enhCost(it){if(!it)return 0;return (it.enhance+1)*600+1500;}
+    function sellPrice(it){
+      if(!it)return 0;
+      if(it.type==='scroll_weapon'||it.type==='scroll_armor'){
+        const b=it.blessed?20000:it.cursed?30000:10000;
+        return Math.floor(b*0.5)*(it.count||1);
+      }
+      return 800+it.enhance*it.enhance*900;
+    }
+
+    // ─── 背包統計與排序 ───
+    const totalItems = computed(() => {
+      let sum = 0;
+      for (const item of inventory.value) {
+        if (item) sum += (item.count || 1);
+      }
+      return sum;
+    });
+    const usedSlots = computed(() => {
+      return inventory.value.filter(item => item !== null).length;
+    });
+
+    function applySort() {
+      const type = sortType.value;
+      if (type === 'default') return;
+      const items = inventory.value.filter(item => item !== null);
+      switch (type) {
+        case 'type':
+          items.sort((a, b) => (a.type || '').localeCompare(b.type || ''));
+          break;
+        case 'name':
+          items.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+          break;
+        case 'enhance':
+          items.sort((a, b) => (b.enhance || 0) - (a.enhance || 0));
+          break;
+      }
+      const newArr = items;
+      while (newArr.length < 100) newArr.push(null);
+      inventory.value = newArr;
+      selSlot.value = null;
+    }
+
+    // ─── 工具函數 ───
+    function fmt(n){return n.toLocaleString();}
+    function addMsg(text,type='white'){
+      messages.value.push({text,type});
+      if(messages.value.length>60)messages.value.shift();
+      nextTick(()=>{if(msgLog.value)msgLog.value.scrollTop=msgLog.value.scrollHeight;});
+    }
+    function showToast(text,color='var(--gold)'){
+      toast.show=false;
+      nextTick(()=>{toast.text=text;toast.color=color;toast.show=true;
+        setTimeout(()=>toast.show=false,3000);});
+    }
+    function showEff(type,lv){eff.show=true;eff.type=type;eff.lv=lv;setTimeout(()=>eff.show=false,1500);}
+
+    // ══════════════════════════════════════════
+    //  localStorage 同步（跨頁面狀態）
+    // ══════════════════════════════════════════
+    function persistPlayer(){
+      const player=JSON.parse(localStorage.getItem('lineage_player')||'{}');
+      player.name=charName.value;
+      player.gold=gold.value;
+      player.loggedIn=true;
+      localStorage.setItem('lineage_player',JSON.stringify(player));
+    }
+    function persistInventory(){
+      localStorage.setItem('lineage_inventory',JSON.stringify(inventory.value));
+    }
+    function persistConfig(){
+      localStorage.setItem('lineage_config',JSON.stringify({
+        maxEnhLevel:maxEnhLevel.value,
+        priceConfig:{
+          weapon:{list:[...priceConfig.weapon.list],sell:[...priceConfig.weapon.sell]},
+          armor: {list:[...priceConfig.armor.list], sell:[...priceConfig.armor.sell] },
+          twdRate:priceConfig.twdRate
+        }
+      }));
+    }
+    function persistAll(){ persistPlayer(); persistInventory(); persistConfig(); }
+
+    function loadConfigFrom(cfg){
+      if(!cfg)return;
+      if(cfg.maxEnhLevel) maxEnhLevel.value=cfg.maxEnhLevel;
+      if(cfg.priceConfig){
+        const pc=cfg.priceConfig;
+        if(pc.weapon&&pc.weapon.list&&pc.weapon.list.length) priceConfig.weapon.list=[...pc.weapon.list];
+        if(pc.weapon&&pc.weapon.sell&&pc.weapon.sell.length) priceConfig.weapon.sell=[...pc.weapon.sell];
+        if(pc.armor&&pc.armor.list&&pc.armor.list.length)   priceConfig.armor.list=[...pc.armor.list];
+        if(pc.armor&&pc.armor.sell&&pc.armor.sell.length)   priceConfig.armor.sell=[...pc.armor.sell];
+        if(pc.twdRate) priceConfig.twdRate=pc.twdRate;
+      }
+    }
+
+    // 從其他頁面（setting / cash_pay）返回時重新同步
+    function syncFromStorage(){
+      const player=JSON.parse(localStorage.getItem('lineage_player')||'null');
+      if(!player||!player.loggedIn){ window.location.href='login.html'; return; }
+      if(typeof player.gold==='number') gold.value=player.gold;
+      const cfg=JSON.parse(localStorage.getItem('lineage_config')||'null');
+      loadConfigFrom(cfg);
+    }
+
+    // ─── 頁面導覽 ───
+    function goSetting(){ persistAll(); window.location.href='setting.html'; }
+    function goCashPay(){ persistAll(); window.location.href='cash_pay.html'; }
+    function goRefineTable(){ window.open('refine_table.html','_blank'); }
+    function doLogout(){
+      persistAll();
+      const player=JSON.parse(localStorage.getItem('lineage_player')||'{}');
+      player.loggedIn=false;
+      localStorage.setItem('lineage_player',JSON.stringify(player));
+      window.location.href='login.html';
+    }
+
+    // ─── 批量購買 ───
+    function openBuy(item){
+      buyModal.item=item;
+      buyModal.qty=1;
+      buyModal.show=true;
+    }
+    function confirmBuy(){
+      const item=buyModal.item;
+      const qty=Math.min(99,Math.max(1,buyModal.qty||1));
+      const total=item.price*qty;
+      if(gold.value<total){showToast('天幣不足！','var(--red)');return;}
+      const isScroll=item.type==='scroll_weapon'||item.type==='scroll_armor';
+      let bought=0;
+      for(let q=0;q<qty;q++){
+        if(isScroll){
+          const ei=inventory.value.findIndex(s=>s&&s.id===item.id&&(s.count||1)<99);
+          if(ei>=0){inventory.value[ei]={...inventory.value[ei],count:(inventory.value[ei].count||1)+1};bought++;continue;}
+        }
+        const slot=inventory.value.findIndex(s=>s===null);
+        if(slot<0){showToast(`背包空間不足，只買了${bought}個！`,'var(--red)');break;}
+        inventory.value[slot]={...item,enhance:0,count:1};bought++;
+      }
+      if(bought>0){
+        gold.value-=item.price*bought;
+        addMsg(`購買：${item.name} x${bought}，-${fmt(item.price*bought)} 天幣`,'gold');
+      }
+      buyModal.show=false;
+    }
+
+    function sellItem(){
+      if(!selItem.value)return;
+      const it=selItem.value,p=sellPrice(it);
+      gold.value+=p;
+      addMsg(`出售：${it.name}${it.enhance>0?'+'+it.enhance:''}，+${fmt(p)} 天幣`,'green');
+      const slot=selSlot.value;
+      const itCopy=it;
+      if((itCopy.count||1)>1){
+        inventory.value[slot]={...itCopy,count:(itCopy.count||1)-1};
+      } else {
+        inventory.value[slot]=null;
+      }
+    }
+
+    // ─── 背包格子點擊 ───
+    function onSlotClick(i){
+      const slot=inventory.value[i];
+      if(hammerMode.active){
+        hammerClick(i);
+        return;
+      }
+      selSlot.value = selSlot.value===i ? null : i;
+      if(slot && (slot.type==='scroll_weapon'||slot.type==='scroll_armor')){
+        const target=slot.type==='scroll_weapon'?'weapon':'armor';
+        activateHammer(target, i);
+      }
+    }
+
+    // ─── 鐵鎚模式 ───
+    function activateHammer(target, forceScrollIdx=-1){
+      let sc=null, scIdx=-1;
+      if(forceScrollIdx>=0){
+        sc=inventory.value[forceScrollIdx]; scIdx=forceScrollIdx;
+      } else if(selItem.value && (selItem.value.type==='scroll_weapon'||selItem.value.type==='scroll_armor')){
+        sc=selItem.value; scIdx=selSlot.value;
+      } else {
+        scIdx=inventory.value.findIndex(s=>s&&s.type===`scroll_${target}`);
+        if(scIdx>=0) sc=inventory.value[scIdx];
+      }
+      if(!sc){showToast(`背包中沒有${target==='weapon'?'武器':'防具'}卷軸！`,'var(--red)');return;}
+      hammerMode.active=true;
+      hammerMode.scrollIdx=scIdx;
+      hammerMode.target=target;
+      hammerMode.scrollName=sc.name;
+      hammerMode.isCursed=sc.cursed||false;
+      hammerMode.isBlessed=sc.blessed||false;
+      selSlot.value=null;
+      addMsg(`🔨 鐵鎚模式啟動！游標已變鐵鎚，點${target==='weapon'?'武器':'防具'}格強化`,'blue');
+    }
+
+    function cancelHammer(){
+      hammerMode.active=false;
+      hammerMode.scrollIdx=-1;
+      hammerMode.target='';
+    }
+
+    function closeInventory(){
+      ui.inventory=false;
+      cancelHammer();
+    }
+
+    function hammerClick(slotIdx){
+      const it=inventory.value[slotIdx];
+      if(!it||it.type!==hammerMode.target){
+        addMsg('⚠ 此格不是可強化的裝備','red');
+        return;
+      }
+      if(it.enhance>=maxEnhLevel.value){
+        showToast(`已達最高強化 +${maxEnhLevel.value}！`);
+        cancelHammer();
+        return;
+      }
+      const scIdx=hammerMode.scrollIdx;
+      const isB=hammerMode.isBlessed;
+      const isC=hammerMode.isCursed;
+      cancelHammer();
+      executeScrollEnhance(slotIdx, scIdx, isB, isC);
+    }
+
+    // ─── 卷軸強化核心 ───
+    function executeScrollEnhance(equipIdx, scrollIdx, isBlessed, isCursed){
+      const it=inventory.value[equipIdx];
+      if(!it){showToast('裝備已不存在！','var(--red)');return;}
+      const cost=enhCost(it);
+      if(gold.value<cost){showToast('天幣不足，無法強化！','var(--red)');return;}
+      gold.value-=cost;
+
+      if(scrollIdx>=0&&scrollIdx<inventory.value.length){
+        const sc=inventory.value[scrollIdx];
+        if(sc){
+          if((sc.count||1)<=1) inventory.value[scrollIdx]=null;
+          else inventory.value[scrollIdx]={...sc,count:(sc.count||1)-1};
+        }
+      }
+
+      const bonus=isBlessed?20:isCursed?40:0;
+      const rate=successRate(it,bonus);
+      const roll=Math.random()*100;
+      const itemName=it.name;
+      const oldLv=it.enhance;
+      const safe=isSafe(it);
+
+      if(roll<rate){
+        if(isCursed){
+          const newLv=Math.max(0,oldLv-1);
+          inventory.value[equipIdx]={...it,enhance:newLv};
+          showResult('fail',
+            `<span style="color:#cc44cc">+${oldLv}【${itemName}】</span>承受詛咒力量<br>` +
+            `精煉值從 <b>+${oldLv}</b> 倒退回 <b style="color:#ff4444">+${newLv}</b>！`
+          );
+          addMsg(`💀 詛咒倒扣！${itemName}+${oldLv} → +${newLv}`,'purple');
+        } else if(isBlessed){
+          const jump=Math.random()<0.5?2:1;
+          const newLv=Math.min(maxEnhLevel.value,oldLv+jump);
+          inventory.value[equipIdx]={...it,enhance:newLv};
+          showResult('success',
+            `你的<span style="color:var(--gold2)">【${itemName}】</span>已成功` +
+            `<b style="color:var(--gold2)"> +${newLv}</b>` +
+            (jump===2
+              ? `<br><span style="color:#44ffaa">✦ 祝福加持，一口氣躍升 +2！</span>`
+              : `<br><span style="color:var(--gold)">精煉 +1 成功</span>`)
+          );
+          addMsg(`✨ 祝福精煉！${itemName} +${oldLv} → +${newLv}${jump===2?' ⬆+2!':''}`,'gold');
+        } else {
+          const newLv=Math.min(maxEnhLevel.value,oldLv+1);
+          inventory.value[equipIdx]={...it,enhance:newLv};
+          showResult('success',
+            `你的<span style="color:var(--gold2)">【${itemName}】</span>已成功<b style="color:var(--gold2)"> +${newLv}</b>`
+          );
+          addMsg(`✨ 精煉成功！${itemName} → +${newLv}`,'gold');
+        }
+      } else {
+        if(safe){
+          addMsg(`❌ 強化失敗（安定範圍保護，未損壞）`,'red');
+        } else {
+          inventory.value[equipIdx]=null;
+          if(equipIdx===selSlot.value) selSlot.value=null;
+          showResult('boom',
+            `+${oldLv}<span style="color:#ff4400">【${itemName}】</span><br>` +
+            `發出閃亮的光芒，化成了粉末！`
+          );
+          addMsg(`💥 強化失敗！+${oldLv}${itemName} 化為粉末！`,'red');
+        }
+      }
+    }
+
+    function showResult(type, desc){
+      result.type=type; result.desc=desc; result.show=true;
+    }
+
+    // ─── 直接強化 (無卷軸，舊版入口) ───
+    function openEnhance(){
+      if(!selItem.value)return;
+      if(selItem.value.enhance>=maxEnhLevel.value){showToast(`已達最高強化 +${maxEnhLevel.value}！`);return;}
+      enhTgt.value={...selItem.value};ui.enhance=true;
+    }
+
+    function doEnhance(){
+      if(!enhTgt.value)return;
+      const it=selItem.value, cost=enhCost(it);
+      if(gold.value<cost){showToast('天幣不足！','var(--red)');return;}
+      gold.value-=cost; ui.enhance=false;
+      const rate=successRate(it,0), roll=Math.random()*100;
+      const itemName=it.name, oldLv=it.enhance;
+      if(roll<rate){
+        const newLv=Math.min(maxEnhLevel.value,oldLv+1);
+        inventory.value[selSlot.value]={...it,enhance:newLv};
+        enhTgt.value={...it,enhance:newLv};
+        showResult('success',`你的<span style="color:var(--gold2)">【${itemName}】</span>已成功<b style="color:var(--gold2)">+${newLv}</b>`);
+        addMsg(`✨ 強化成功！${itemName} → +${newLv}`,'gold');
+      } else {
+        const boomP=0.4;
+        if(!isSafe(it)&&Math.random()<boomP){
+          inventory.value[selSlot.value]=null;selSlot.value=null;
+          showResult('boom',`+${oldLv}<span style="color:#ff4400">【${itemName}】</span>發出閃亮的光芒化成粉末！`);
+          addMsg(`💥 強化失敗！+${oldLv}${itemName} 化為粉末！`,'red');
+        } else {
+          const newLv=Math.max(0,oldLv-1);
+          inventory.value[selSlot.value]={...it,enhance:newLv};
+          showResult('fail',`+${oldLv}<span style="color:#ff6644">【${itemName}】</span>強化失敗，等級降為 <b style="color:#ff4444">+${newLv}</b>`);
+          addMsg(`❌ 強化失敗！${itemName}+${oldLv} → +${newLv}`,'red');
+        }
+      }
+    }
+
+    // ─── 收購配置 ───
+    function getListPrice(type,lv){
+      return (priceConfig[type]?.list[lv-1])||0;
+    }
+    function getActualSellPrice(type,lv){
+      const list=getListPrice(type,lv);
+      const custom=priceConfig[type]?.sell[lv-1]||0;
+      return custom>list ? custom : list;
+    }
+
+    // ─── 歐林收購 ───
+    function selectOlinSell(type,lv){
+      if(olinSellSelect.type===type&&olinSellSelect.lv===lv){
+        olinSellSelect.type=''; olinSellSelect.lv=0;
+      } else {
+        olinSellSelect.type=type; olinSellSelect.lv=lv;
+      }
+    }
+    function doOlinSell(){
+      const {type,lv}=olinSellSelect;
+      if(!type||!lv){return;}
+      const idx=inventory.value.findIndex(it=>it&&it.type===type&&it.enhance===lv);
+      if(idx<0){
+        showToast(`背包中沒有 +${lv} 的${type==='weapon'?'武器':'防具'}！`,'var(--red)');
+        return;
+      }
+      const price=getActualSellPrice(type,lv);
+      const itName=inventory.value[idx].name;
+      gold.value+=price;
+      inventory.value[idx]=null;
+      if(selSlot.value===idx) selSlot.value=null;
+      addMsg(`💰 賣出 ${itName}+${lv} → +${fmt(price)} 天幣（歐林收購）`,'green');
+      olinSellSelect.type=''; olinSellSelect.lv=0;
+    }
+
+    function talkToOlin(){
+      dialog.show=true;dialog.npc='歐林 [雜貨商]';
+      dialog.text='為了找我來到這裏，看來你也是為了變強而付出一切的人啊……。為什麼人們那麼想變強呢。對，他也一樣………。嗯，雖然現在都無所謂了。來，如果需要我的魔法，就應該付出相應的代價。我的研究需要錢。';
+      dialog.options=[
+        {label:'購買裝備',action:()=>{dialog.show=false;ui.shop=true;shopTab.value='weapon';}},
+        {label:'出售裝備',action:()=>{dialog.show=false;ui.shop=true;shopTab.value='buyback';}},
+      ];
+    }
+
+    // ─── 消息日誌縮放控制 ───
+    function changeMsgLogScale(delta){
+      const newVal=msgLogScale.value+delta;
+      if(newVal>=1&&newVal<=10){ msgLogScale.value=newVal; }
+    }
+    function resetMsgLogScale(){ msgLogScale.value=6; }
+
+    // ══════════════════════════════════════════
+    //  CANVAS 渲染引擎
+    // ══════════════════════════════════════════
+    function initCanvas(){
+      const c=canvas.value; if(!c)return;
+      c.width=window.innerWidth; c.height=window.innerHeight;
+      ctx=c.getContext('2d');
+      window.addEventListener('resize',()=>{c.width=window.innerWidth;c.height=window.innerHeight;});
+      window.addEventListener('keydown',e=>{
+        keys[e.key]=true;
+        if(e.key==='i'||e.key==='I')ui.inventory=!ui.inventory;
+        if(e.key==='Escape'){
+          if(hammerMode.active){cancelHammer();return;}
+          dialog.show=false;ui.shop=false;ui.enhance=false;
+        }
+      });
+      window.addEventListener('mousemove',e=>{
+        cursorPos.x=e.clientX; cursorPos.y=e.clientY; cursorPos.visible=true;
+      });
+      window.addEventListener('mouseleave',()=>{cursorPos.visible=false;});
+      window.addEventListener('keyup',e=>keys[e.key]=false);
+      c.addEventListener('click',e=>{
+        if(ui.shop||ui.enhance||dialog.show)return;
+        const rect=c.getBoundingClientRect();
+        const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+        const W=c.width,H=c.height;
+        const camX=W/2-wx, camY=H/2-wy;
+        const wox=OLIN_X+camX, woy=OLIN_Y+camY;
+        if(Math.hypot(mx-wox,my-woy)<50){
+          const playerDist=Math.hypot(wx-OLIN_X, wy-OLIN_Y);
+          if(playerDist<=108){
+            talkToOlin();
+          } else {
+            addMsg('⚠ 距離太遠！請靠近歐林商人後再點擊（3格內）','red');
+          }
+        }
+      });
+      requestAnimationFrame(loop);
+    }
+
+    function loop(){
+      const W=ctx.canvas.width, H=ctx.canvas.height;
+      if(!ui.shop&&!ui.enhance&&!dialog.show){
+        let dx=0,dy=0;
+        if(keys['ArrowLeft']||keys['a'])dx=-SPEED;
+        if(keys['ArrowRight']||keys['d'])dx=SPEED;
+        if(keys['ArrowUp']||keys['w'])dy=-SPEED;
+        if(keys['ArrowDown']||keys['s'])dy=SPEED;
+        if(dx!==0&&dy!==0){dx*=0.707;dy*=0.707;}
+        const nx=wx+dx, ny=wy+dy;
+        const px=16;
+        const inX=walkable(nx,wy-px)||walkable(nx,wy+px);
+        const inY=walkable(wx-px,ny)||walkable(wx+px,ny);
+        if(inX)wx=nx;
+        if(inY)wy=ny;
+        if(dx!==0||dy!==0)walkTick++;
+        else walkTick=0;
+        walkFrame=Math.floor(walkTick/10)%4;
+      }
+      render(W,H);
+      requestAnimationFrame(loop);
+    }
+
+    function camOffset(W,H){return {cx:W/2-wx, cy:H/2-wy};}
+
+    function render(W,H){
+      ctx.clearRect(0,0,W,H);
+      const {cx,cy}=camOffset(W,H);
+      ctx.save();
+      ctx.translate(cx,cy);
+
+      drawAllRooms();
+      drawDecorations();
+      drawBookshelf(OLIN_X,OLIN_Y-40);   // 書櫃：在歐林後方
+      drawNPC(OLIN_X,OLIN_Y);
+      drawBookStand(OLIN_X,OLIN_Y+46);   // 書架＋書本：在歐林前方
+      drawPlayer(wx,wy);
+
+      ctx.restore();
+      drawDepthOverlay(W,H);             // 2.5D 氛圍／景深
+      drawMinimap(W,H);
+      drawHints(W,H);
+    }
+
+    function drawAllRooms(){
+      for(const r of rooms) drawRoom(r);
+      drawCorridor(544,360,672,360,200,160);
+      drawCorrider2(320,524,320,668,140,180);
+    }
+
+    function drawRoom(r){
+      const {x,y,w,h}=r;
+      drawFloor(x+WALL,y+WALL,w-WALL*2,h-WALL*2);
+      drawWallTop(x,y,w,WALL);
+      drawWallTop(x,y+h-WALL,w,WALL);
+      drawWallSide(x,y+WALL,WALL,h-WALL*2);
+      drawWallSide(x+w-WALL,y+WALL,WALL,h-WALL*2);
+      drawPillar(x,y,WALL,WALL);
+      drawPillar(x+w-WALL,y,WALL,WALL);
+      drawPillar(x,y+h-WALL,WALL,WALL);
+      drawPillar(x+w-WALL,y+h-WALL,WALL,WALL);
+    }
+
+    function drawFloor(fx,fy,fw,fh){
+      const TW=40,TH=40;
+      for(let ty=0;ty<fh;ty+=TH){
+        for(let tx=0;tx<fw;tx+=TW){
+          const even=((Math.floor(tx/TW)+Math.floor(ty/TH))%2===0);
+          ctx.fillStyle=even?'#3a2810':'#321f08';
+          ctx.fillRect(fx+tx,fy+ty,Math.min(TW,fw-tx),Math.min(TH,fh-ty));
+        }
+      }
+      drawStains(fx,fy,fw,fh);
+      ctx.strokeStyle='rgba(0,0,0,0.35)';ctx.lineWidth=0.5;
+      for(let ty=0;ty<=fh;ty+=TH){ctx.beginPath();ctx.moveTo(fx,fy+ty);ctx.lineTo(fx+fw,fy+ty);ctx.stroke();}
+      for(let tx=0;tx<=fw;tx+=TW){ctx.beginPath();ctx.moveTo(fx+tx,fy);ctx.lineTo(fx+tx,fy+fh);ctx.stroke();}
+    }
+
+    function drawStains(fx,fy,fw,fh){
+      const stains=[
+        {rx:0.15,ry:0.2,rs:22},{rx:0.5,ry:0.4,rs:16},
+        {rx:0.75,ry:0.7,rs:28},{rx:0.3,ry:0.8,rs:14},
+        {rx:0.65,ry:0.15,rs:20},{rx:0.85,ry:0.5,rs:12},
+      ];
+      for(const s of stains){
+        const sx=fx+fw*s.rx, sy=fy+fh*s.ry;
+        if(sx<fx||sx>fx+fw||sy<fy||sy>fy+fh)continue;
+        ctx.save();
+        ctx.globalAlpha=0.18;
+        ctx.fillStyle='#8b0000';
+        ctx.beginPath();
+        ctx.ellipse(sx,sy,s.rs,s.rs*0.6,0.8,0,Math.PI*2);
+        ctx.fill();
+        ctx.beginPath();ctx.ellipse(sx+s.rs*0.6,sy-s.rs*0.3,s.rs*0.3,s.rs*0.15,0.5,0,Math.PI*2);ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawWallTop(wx,wy,ww,wh){
+      const BW=48,BH=wh;
+      for(let bx=0;bx<ww;bx+=BW){
+        const bw=Math.min(BW,ww-bx);
+        ctx.fillStyle='#5a3f20';
+        ctx.fillRect(wx+bx,wy,bw,BH);
+        ctx.strokeStyle='#3a2510';ctx.lineWidth=1;
+        ctx.strokeRect(wx+bx+1,wy+1,bw-2,BH-2);
+        ctx.fillStyle='rgba(255,200,100,0.06)';
+        ctx.fillRect(wx+bx,wy,bw,4);
+      }
+      ctx.fillStyle='rgba(0,0,0,0.4)';
+      ctx.fillRect(wx,wy+wh-6,ww,6);
+    }
+
+    function drawWallSide(wx,wy,ww,wh){
+      const BH=32;
+      for(let by=0;by<wh;by+=BH){
+        const bh=Math.min(BH,wh-by);
+        ctx.fillStyle='#4a3218';
+        ctx.fillRect(wx,wy+by,ww,bh);
+        ctx.strokeStyle='#2a1c08';ctx.lineWidth=0.8;
+        ctx.strokeRect(wx+1,wy+by+1,ww-2,bh-2);
+      }
+      const grd=ctx.createLinearGradient(wx,0,wx+ww,0);
+      grd.addColorStop(0,'rgba(0,0,0,0.4)');grd.addColorStop(1,'rgba(0,0,0,0.05)');
+      ctx.fillStyle=grd;ctx.fillRect(wx,wy,ww,wh);
+    }
+
+    function drawPillar(px,py,pw,ph){
+      ctx.fillStyle='#3a2810';
+      ctx.fillRect(px,py,pw,ph);
+      ctx.strokeStyle='#2a1c08';ctx.lineWidth=1;
+      ctx.strokeRect(px+2,py+2,pw-4,ph-4);
+      ctx.fillStyle='rgba(0,0,0,0.4)';
+      ctx.fillRect(px,py,pw,4);ctx.fillRect(px,py,4,ph);
+    }
+
+    function drawCorridor(x1,y1,x2,y2,cw,ch){
+      const fx=Math.min(x1,x2), fy=y1-ch/2;
+      const fw=Math.abs(x2-x1), fh=ch;
+      drawFloor(fx,fy+WALL,fw,fh-WALL*2);
+      drawWallTop(fx,fy,fw,WALL);
+      drawWallTop(fx,fy+fh-WALL,fw,WALL);
+    }
+
+    function drawCorrider2(x1,y1,x2,y2,cw,ch){
+      const fx=x1-cw/2, fy=Math.min(y1,y2);
+      const fw=cw, fh=Math.abs(y2-y1);
+      drawFloor(fx+WALL,fy,fw-WALL*2,fh);
+      drawWallSide(fx,fy,WALL,fh);
+      drawWallSide(fx+fw-WALL,fy,WALL,fh);
+    }
+
+    function drawDecorations(){
+      drawTorch(130,220); drawTorch(530,220);
+      drawTorch(130,510); drawTorch(530,510);
+      drawTorch(690,145); drawTorch(930,145);
+      drawTorch(690,360);
+      drawSkull(190,510); drawSkull(460,520);
+      drawBarrel(200,700); drawBarrel(225,715); drawBarrel(430,700);
+    }
+
+    function drawTorch(tx,ty){
+      const t=Date.now();
+      const flicker=Math.sin(t/180+tx)*2.5+Math.sin(t/120+ty)*1.5;
+      ctx.fillStyle='#553322';ctx.fillRect(tx-2,ty,4,18);
+      ctx.save();ctx.globalAlpha=0.15;
+      ctx.fillStyle='#ff8800';
+      ctx.beginPath();ctx.ellipse(tx,ty-2,18+flicker,22+flicker,0,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+      ctx.fillStyle='#cc4400';
+      ctx.beginPath();ctx.ellipse(tx,ty-4,5+flicker*0.4,8+flicker*0.6,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ffaa00';
+      ctx.beginPath();ctx.ellipse(tx,ty-3,3,5+flicker*0.4,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ffff88';
+      ctx.beginPath();ctx.ellipse(tx,ty-2,1.5,3,0,0,Math.PI*2);ctx.fill();
+    }
+
+    function drawSkull(sx,sy){
+      ctx.save();ctx.globalAlpha=0.5;
+      ctx.fillStyle='#d4c4a0';
+      ctx.beginPath();ctx.ellipse(sx,sy,8,7,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#1a1008';
+      ctx.beginPath();ctx.ellipse(sx-3,sy+1,2,2.5,0,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.ellipse(sx+3,sy+1,2,2.5,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#c8b890';ctx.globalAlpha=0.4;
+      ctx.fillRect(sx-12,sy+4,24,4);
+      ctx.fillRect(sx-8,sy+8,16,4);
+      ctx.restore();
+    }
+
+    function drawBarrel(bx,by){
+      ctx.fillStyle='#553322';ctx.fillRect(bx-9,by-16,18,20);
+      ctx.strokeStyle='#8B6622';ctx.lineWidth=2;
+      ctx.strokeRect(bx-10,by-18,20,3);
+      ctx.strokeRect(bx-10,by-8,20,3);
+      ctx.strokeRect(bx-10,by+1,20,4);
+      ctx.fillStyle='#442211';ctx.fillRect(bx-9,by+2,18,2);
+    }
+
+    // ─── 法杖（長者手持，2.5D 木質＋發光寶珠）───
+    function drawStaff(sx,ny){
+      // 木杖主體
+      ctx.strokeStyle='#6a4828';ctx.lineWidth=4;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(sx,ny+36);ctx.lineTo(sx-4,ny-34);ctx.stroke();
+      ctx.strokeStyle='#9a7848';ctx.lineWidth=1.4;
+      ctx.beginPath();ctx.moveTo(sx-1,ny+34);ctx.lineTo(sx-5,ny-32);ctx.stroke();
+      // 杖頭環抱寶珠的爪
+      ctx.strokeStyle='#5a3a1c';ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(sx-4,ny-36,6.5,Math.PI*0.15,Math.PI*1.55);ctx.stroke();
+      // 發光寶珠（脈動）
+      const t=Date.now();const pulse=Math.sin(t/420)*0.3+1;
+      ctx.save();
+      ctx.shadowColor='#5ab0ff';ctx.shadowBlur=15*pulse;
+      ctx.fillStyle='#bfe4ff';
+      ctx.beginPath();ctx.arc(sx-4,ny-39,5.6,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ffffff';
+      ctx.beginPath();ctx.arc(sx-5.5,ny-40.5,2,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+      ctx.lineCap='butt';
+    }
+
+    function drawNPC(nx,ny){
+      ctx.save();
+      // 落地陰影
+      ctx.globalAlpha=0.32;ctx.fillStyle='#000';
+      ctx.beginPath();ctx.ellipse(nx,ny+36,18,6,0,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=1;
+
+      // 法杖（畫在身體後方，杖頂寶珠高於頭部）
+      drawStaff(nx-16,ny);
+
+      // 長袍（飄逸長擺，2.5D 漸層）
+      const robe=ctx.createLinearGradient(nx-16,ny,nx+16,ny+40);
+      robe.addColorStop(0,'#4a2d5a');robe.addColorStop(0.5,'#3a2348');robe.addColorStop(1,'#221230');
+      ctx.fillStyle=robe;
+      ctx.beginPath();
+      ctx.moveTo(nx-12,ny+2);ctx.lineTo(nx+12,ny+2);
+      ctx.lineTo(nx+16,ny+38);ctx.lineTo(nx-16,ny+38);ctx.closePath();ctx.fill();
+      // 袍褶陰影
+      ctx.strokeStyle='rgba(0,0,0,0.35)';ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.moveTo(nx-4,ny+6);ctx.lineTo(nx-6,ny+37);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(nx+4,ny+6);ctx.lineTo(nx+6,ny+37);ctx.stroke();
+      // 金色下襬
+      ctx.fillStyle='#c8a84b';ctx.fillRect(nx-16,ny+35,32,3);
+      // 肩部斗篷
+      ctx.fillStyle='#5a3868';
+      ctx.beginPath();ctx.moveTo(nx-13,ny+5);ctx.lineTo(nx+13,ny+5);ctx.lineTo(nx+10,ny-6);ctx.lineTo(nx-10,ny-6);ctx.closePath();ctx.fill();
+      // 腰帶
+      ctx.fillStyle='#a8842c';ctx.fillRect(nx-12,ny+11,24,3);
+
+      // 兜帽（後方）
+      ctx.fillStyle='#3a2348';ctx.beginPath();ctx.arc(nx,ny-11,12,0,Math.PI*2);ctx.fill();
+      // 臉
+      ctx.fillStyle='#d8b088';ctx.beginPath();ctx.arc(nx,ny-9,8.5,0,Math.PI*2);ctx.fill();
+      // 兜帽（前緣＋尖頂）
+      ctx.fillStyle='#4a2d5a';
+      ctx.beginPath();ctx.arc(nx,ny-13,11,Math.PI,0);ctx.fill();
+      ctx.fillRect(nx-12,ny-13,3.5,11);ctx.fillRect(nx+8.5,ny-13,3.5,11);
+      ctx.beginPath();ctx.moveTo(nx-9,ny-20);ctx.lineTo(nx+1,ny-31);ctx.lineTo(nx+6,ny-17);ctx.closePath();ctx.fill();
+
+      // 長白鬍
+      ctx.fillStyle='#ece8dc';
+      ctx.beginPath();
+      ctx.moveTo(nx-7,ny-7);
+      ctx.quadraticCurveTo(nx-9,ny+8,nx,ny+17);
+      ctx.quadraticCurveTo(nx+9,ny+8,nx+7,ny-7);
+      ctx.closePath();ctx.fill();
+      // 眼睛
+      ctx.fillStyle='#3a2410';
+      ctx.beginPath();ctx.arc(nx-3.2,ny-10,1.4,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(nx+3.2,ny-10,1.4,0,Math.PI*2);ctx.fill();
+      // 白眉
+      ctx.strokeStyle='#ece8dc';ctx.lineWidth=2;ctx.lineCap='round';
+      ctx.beginPath();ctx.moveTo(nx-6,ny-12.5);ctx.lineTo(nx-1,ny-12);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(nx+1,ny-12);ctx.lineTo(nx+6,ny-12.5);ctx.stroke();
+      ctx.lineCap='butt';
+      // 鼻
+      ctx.strokeStyle='rgba(120,80,50,0.6)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(nx,ny-9);ctx.lineTo(nx,ny-6);ctx.stroke();
+      // 握杖的手
+      ctx.fillStyle='#d8b088';ctx.beginPath();ctx.arc(nx-14,ny+8,2.6,0,Math.PI*2);ctx.fill();
+
+      ctx.fillStyle='#fff';ctx.font='bold 12px Noto Serif TC,serif';ctx.textAlign='center';
+      ctx.fillText('歐林',nx,ny-34);
+      ctx.fillStyle='#ccc';ctx.font='10px Noto Serif TC,serif';
+      ctx.fillText('【雜貨商】',nx,ny-22);
+      if(!dialog.show&&!ui.shop){
+        const dist=Math.hypot(wx-OLIN_X,wy-OLIN_Y);
+        if(dist<200){
+          const bob=Math.sin(Date.now()/500)*3;
+          ctx.fillStyle='rgba(200,160,50,0.92)';
+          ctx.beginPath();
+          ctx.roundRect(nx-28,ny-70+bob,56,18,4);ctx.fill();
+          ctx.beginPath();ctx.moveTo(nx-6,ny-52+bob);ctx.lineTo(nx+6,ny-52+bob);ctx.lineTo(nx,ny-46+bob);ctx.closePath();ctx.fill();
+          ctx.fillStyle='#1a0800';ctx.font='10px Noto Serif TC,serif';ctx.textAlign='center';
+          ctx.fillText('點擊交談',nx,ny-58+bob);
+        }
+      }
+      ctx.restore();
+    }
+
+    // ─── 書櫃（歐林後方，2.5D 立體木櫃）───
+    function drawBookshelf(cx,baseY){
+      const w=176,h=92,depth=15;
+      const left=cx-w/2,top=baseY-h;
+      ctx.save();
+      // 地面陰影
+      ctx.globalAlpha=0.3;ctx.fillStyle='#000';
+      ctx.beginPath();ctx.ellipse(cx,baseY+3,w/2+8,12,0,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=1;
+      // 頂面（斜投影）
+      ctx.fillStyle='#6b4a24';
+      ctx.beginPath();ctx.moveTo(left,top);ctx.lineTo(left+depth,top-depth);
+      ctx.lineTo(left+w+depth,top-depth);ctx.lineTo(left+w,top);ctx.closePath();ctx.fill();
+      // 右側面
+      ctx.fillStyle='#33200d';
+      ctx.beginPath();ctx.moveTo(left+w,top);ctx.lineTo(left+w+depth,top-depth);
+      ctx.lineTo(left+w+depth,baseY-depth);ctx.lineTo(left+w,baseY);ctx.closePath();ctx.fill();
+      // 正面櫃身
+      const fg=ctx.createLinearGradient(left,top,left,baseY);
+      fg.addColorStop(0,'#5a3a1c');fg.addColorStop(1,'#402710');
+      ctx.fillStyle=fg;ctx.fillRect(left,top,w,h);
+      ctx.strokeStyle='#241608';ctx.lineWidth=2;ctx.strokeRect(left,top,w,h);
+      // 層板＋書本
+      const shelves=3,pad=8;
+      const innerW=w-pad*2,shelfH=(h-pad*2)/shelves;
+      const cols=['#8a2626','#26607e','#2e7030','#7a521c','#5e2a72','#86671c','#2a4e72','#702a40','#3a6e52'];
+      for(let s=0;s<shelves;s++){
+        const sy=top+pad+s*shelfH;
+        // 層板內凹
+        ctx.fillStyle='rgba(0,0,0,0.35)';ctx.fillRect(left+pad,sy,innerW,shelfH-3);
+        let bx=left+pad+2,ci=s*3;
+        while(bx<left+pad+innerW-5){
+          const bw=6+Math.floor((Math.sin(bx*1.7+s*2)*0.5+0.5)*6);
+          const bh=shelfH-7-((Math.floor(bx)+s)%3)*2;
+          ctx.fillStyle=cols[ci%cols.length];
+          ctx.fillRect(bx,sy+(shelfH-3)-bh,bw,bh);
+          ctx.fillStyle='rgba(255,255,255,0.13)';ctx.fillRect(bx,sy+(shelfH-3)-bh,bw,2);
+          ctx.fillStyle='rgba(0,0,0,0.25)';ctx.fillRect(bx+bw-1,sy+(shelfH-3)-bh,1,bh);
+          bx+=bw+1.5;ci++;
+        }
+        // 木層板
+        ctx.fillStyle='#5a3a1c';ctx.fillRect(left+pad,sy+shelfH-3,innerW,3);
+      }
+      ctx.restore();
+    }
+
+    // ─── 書架（歐林前方，斜面講台＋翻開的書）───
+    function drawBookStand(cx,baseY){
+      ctx.save();
+      // 陰影
+      ctx.globalAlpha=0.3;ctx.fillStyle='#000';
+      ctx.beginPath();ctx.ellipse(cx,baseY+2,28,8,0,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=1;
+      // 立柱
+      ctx.fillStyle='#46290f';ctx.fillRect(cx-5,baseY-30,10,30);
+      ctx.fillStyle='#5a3a1c';ctx.fillRect(cx-5,baseY-30,4,30);
+      // 底座
+      ctx.fillStyle='#33200d';ctx.beginPath();ctx.ellipse(cx,baseY,22,7,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#4a3018';ctx.beginPath();ctx.ellipse(cx,baseY-2,19,5.5,0,0,Math.PI*2);ctx.fill();
+      const topY=baseY-30;
+      // 斜面桌板（2.5D）
+      ctx.fillStyle='#5a3a1c';
+      ctx.beginPath();ctx.moveTo(cx-30,topY-6);ctx.lineTo(cx+30,topY-6);
+      ctx.lineTo(cx+34,topY+9);ctx.lineTo(cx-34,topY+9);ctx.closePath();ctx.fill();
+      ctx.strokeStyle='#241608';ctx.lineWidth=1.5;ctx.stroke();
+      // 翻開的書
+      ctx.fillStyle='#ece4c8';
+      ctx.beginPath();ctx.moveTo(cx-27,topY-2);ctx.lineTo(cx-1,topY-5);ctx.lineTo(cx-1,topY+5);ctx.lineTo(cx-29,topY+8);ctx.closePath();ctx.fill();
+      ctx.beginPath();ctx.moveTo(cx+1,topY-5);ctx.lineTo(cx+27,topY-2);ctx.lineTo(cx+29,topY+8);ctx.lineTo(cx+1,topY+5);ctx.closePath();ctx.fill();
+      // 書脊
+      ctx.fillStyle='#9a7430';ctx.fillRect(cx-1.5,topY-5,3,11);
+      // 文字行
+      ctx.strokeStyle='rgba(70,50,25,0.55)';ctx.lineWidth=0.7;
+      for(let i=0;i<3;i++){
+        const ly=topY-1+i*3;
+        ctx.beginPath();ctx.moveTo(cx-23,ly);ctx.lineTo(cx-5,ly-1);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(cx+5,ly-1);ctx.lineTo(cx+23,ly);ctx.stroke();
+      }
+      // 微弱魔法光暈
+      const t=Date.now();const gp=Math.sin(t/600)*0.06+0.16;
+      ctx.globalAlpha=gp;ctx.fillStyle='#ffd060';
+      ctx.beginPath();ctx.ellipse(cx,topY,30,15,0,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+    }
+
+    // ─── 2.5D 景深／氛圍暗角 ───
+    function drawDepthOverlay(W,H){
+      const g=ctx.createRadialGradient(W/2,H*0.46,Math.min(W,H)*0.28,W/2,H/2,Math.max(W,H)*0.72);
+      g.addColorStop(0,'rgba(0,0,0,0)');
+      g.addColorStop(0.7,'rgba(0,0,0,0.22)');
+      g.addColorStop(1,'rgba(0,0,0,0.58)');
+      ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    }
+
+    function drawPlayer(px,py){
+      ctx.save();
+      const legOff=[[-6,0],[6,0],[-6,4],[6,-4]][walkFrame]||[0,0];
+      ctx.globalAlpha=0.3;ctx.fillStyle='#000';
+      ctx.beginPath();ctx.ellipse(px,py+34,12,4,0,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=1;
+      ctx.fillStyle='#2244aa';
+      ctx.fillRect(px-7+legOff[0]*0.5,py+20,6,16);
+      ctx.fillRect(px+1+legOff[1]*0.5,py+20,6,16);
+      ctx.fillStyle='#110800';
+      ctx.fillRect(px-8+legOff[0]*0.5,py+33,7,5);
+      ctx.fillRect(px+0+legOff[1]*0.5,py+33,7,5);
+      ctx.fillStyle='#992211';ctx.fillRect(px-10,py,20,22);
+      ctx.fillStyle='#bb3322';ctx.fillRect(px-8,py+2,8,10);
+      ctx.fillStyle='#888';ctx.fillRect(px-13,py-2,6,8);ctx.fillRect(px+7,py-2,6,8);
+      ctx.fillStyle='#d4a060';ctx.beginPath();ctx.arc(px,py-4,10,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#666655';ctx.fillRect(px-10,py-12,20,10);
+      ctx.beginPath();ctx.arc(px,py-12,10,Math.PI,0);ctx.fill();
+      ctx.fillStyle='#888877';ctx.fillRect(px-2,py-18,4,8);
+      ctx.fillStyle='#110800';ctx.beginPath();ctx.arc(px-3,py-4,1.5,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(px+3,py-4,1.5,0,Math.PI*2);ctx.fill();
+      ctx.save();ctx.translate(px+12,py+8);ctx.rotate(-0.5+Math.sin(walkTick*0.3)*0.15);
+      ctx.strokeStyle='#bbb';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,20);ctx.lineTo(4,-18);ctx.stroke();
+      ctx.fillStyle='#ddd';ctx.fillRect(2,-22,4,6);
+      ctx.fillStyle='#aaa';ctx.fillRect(0,-16,8,3);
+      ctx.restore();
+      ctx.fillStyle='#88ccff';ctx.font='bold 11px Noto Serif TC,serif';ctx.textAlign='center';
+      ctx.fillText(charName.value||'冒險者',px,py-20);
+      ctx.restore();
+    }
+
+    function drawMinimap(W,H){
+      const MX=W-130,MY=50,MW=120,MH=100,SCALE=0.08;
+      ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(MX-2,MY-2,MW+4,MH+24);
+      ctx.strokeStyle='#5a3a1a';ctx.lineWidth=1;ctx.strokeRect(MX-2,MY-2,MW+4,MH+24);
+      ctx.fillStyle='rgba(255,255,255,0.06)';
+      const ox=MX+MW/2-wx*SCALE, oy=MY+MH/2-wy*SCALE;
+      for(const r of rooms){
+        ctx.fillStyle='rgba(80,50,20,0.7)';
+        ctx.fillRect(ox+r.x*SCALE,oy+r.y*SCALE,r.w*SCALE,r.h*SCALE);
+        ctx.strokeStyle='#5a3a1a';ctx.lineWidth=0.5;
+        ctx.strokeRect(ox+r.x*SCALE,oy+r.y*SCALE,r.w*SCALE,r.h*SCALE);
+      }
+      ctx.fillStyle='#4488ff';
+      ctx.beginPath();ctx.arc(ox+wx*SCALE,oy+wy*SCALE,3,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ffcc00';
+      ctx.beginPath();ctx.arc(ox+OLIN_X*SCALE,oy+OLIN_Y*SCALE,3,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#888';ctx.font='9px serif';ctx.textAlign='left';
+      ctx.fillText('小地圖',MX,MY+MH+12);
+      ctx.fillStyle='#4488ff';ctx.fillRect(MX,MY+MH+14,6,6);ctx.fillStyle='#aaa';ctx.font='9px serif';ctx.fillText(' 你',MX+5,MY+MH+20);
+      ctx.fillStyle='#ffcc00';ctx.fillRect(MX+32,MY+MH+14,6,6);ctx.fillStyle='#aaa';ctx.fillText(' 歐林',MX+37,MY+MH+20);
+    }
+
+    function drawHints(W,H){
+      ctx.font='14px Noto Serif TC,serif';ctx.textAlign='left';
+      const dist=Math.round(Math.hypot(wx-OLIN_X,wy-OLIN_Y));
+      const inRange=dist<=108;
+      const lines=['WASD / 方向鍵：移動','I/🎒圖示：背包  Esc：關閉/取消鐵鎚','靠近歐林3格內點擊交談',`歐林距離: ${dist}px ${inRange?'✓可交談':'(需靠近)'}`];
+      let bw=0;for(const l of lines)bw=Math.max(bw,ctx.measureText(l).width);
+      bw=Math.round(bw)+24;const bh=96;
+      const bx=Math.round((W-bw)/2),by=H-bh-6;
+      ctx.fillStyle='rgba(0,0,0,0.55)';
+      ctx.fillRect(bx,by,bw,bh);
+      ctx.strokeStyle='#3a2510';ctx.lineWidth=1;ctx.strokeRect(bx,by,bw,bh);
+      const tx=bx+12;
+      ctx.fillStyle='#907050';
+      ctx.fillText(lines[0],tx,by+24);
+      ctx.fillText(lines[1],tx,by+46);
+      ctx.fillText(lines[2],tx,by+68);
+      ctx.fillStyle=inRange?'#44cc44':'#cc8844';
+      ctx.fillText(lines[3],tx,by+90);
+    }
+
+    // roundRect polyfill for older browsers
+    if (!CanvasRenderingContext2D.prototype.roundRect) {
+      CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r) {
+        if (r > w/2) r = w/2;
+        if (r > h/2) r = h/2;
+        this.moveTo(x+r, y);
+        this.lineTo(x+w-r, y);
+        this.quadraticCurveTo(x+w, y, x+w, y+r);
+        this.lineTo(x+w, y+h-r);
+        this.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+        this.lineTo(x+r, y+h);
+        this.quadraticCurveTo(x, y+h, x, y+h-r);
+        this.lineTo(x, y+r);
+        this.quadraticCurveTo(x, y, x+r, y);
+        return this;
+      };
+    }
+
+    // ══════════════════════════════════════════
+    //  進場：驗證登入 + 載入存檔
+    // ══════════════════════════════════════════
+    onMounted(()=>{
+      const player=JSON.parse(localStorage.getItem('lineage_player')||'null');
+      if(!player||!player.loggedIn){ window.location.href='login.html'; return; }
+
+      charName.value = player.name || '冒險者';
+      gold.value = (typeof player.gold==='number') ? player.gold : 10000000;
+
+      // 載入背包
+      const inv=JSON.parse(localStorage.getItem('lineage_inventory')||'null');
+      if(Array.isArray(inv)){
+        const arr=inv.slice(0,100);
+        while(arr.length<100) arr.push(null);
+        inventory.value=arr;
+      }
+
+      // 載入配置（最高精煉等級 + 牌價/售價/匯率）
+      loadConfigFrom(JSON.parse(localStorage.getItem('lineage_config')||'null'));
+
+      ready.value=true;
+      nextTick(()=>initCanvas());
+
+      addMsg(`系統：歡迎回來，${charName.value}！持有 ${fmt(gold.value)} 天幣。`,'gold');
+      addMsg('提示：WASD移動 │ 靠近歐林商人點擊交談 │ I=背包 │ 右側🎒圖示=背包 │ Esc=關閉','blue');
+
+      // 從子頁面返回時重新同步狀態
+      window.addEventListener('focus',syncFromStorage);
+
+      // ─── 自動存檔 watch ───
+      watch(gold,()=>persistPlayer());
+      watch(inventory,()=>persistInventory(),{deep:true});
+      watch(maxEnhLevel,()=>persistConfig());
+      watch(priceConfig,()=>persistConfig(),{deep:true});
+    });
+
+    return {
+      ready,charName,gold,canvas,msgLog,
+      messages,shopTab,TABS,shopItems,selSlot,selItem,inventory,
+      ui,dialog,eff,toast,enhTgt,
+      buyModal,hammerMode,result,cursorPos,
+      priceConfig,olinSellSelect,
+      msgLogScale, changeMsgLogScale, resetMsgLogScale,
+      sortType, totalItems, usedSlots, applySort,
+      maxEnhLevel,
+      openBuy,confirmBuy,sellItem,openEnhance,doEnhance,
+      activateHammer,cancelHammer,hammerClick,closeInventory,onSlotClick,
+      isSafe,successRate,scrollBonus,enhCost,sellPrice,fmt,
+      getListPrice,getActualSellPrice,
+      selectOlinSell,doOlinSell,
+      goSetting,goCashPay,goRefineTable,doLogout,
+      DEFAULT_WEAPON_LIST,DEFAULT_ARMOR_LIST,
+    };
+  }
+}).mount('#app');
+</script>
+<audio id="bgm" src="static/bgm/lineage_game.mp3" loop preload="auto"></audio>
+<script>
+(function initBGM() {
+  const audio = document.getElementById('bgm');
+  const unlock = () => { audio.play().catch(() => {}); document.removeEventListener('click', unlock); document.removeEventListener('keydown', unlock); };
+  audio.play().catch(() => { document.addEventListener('click', unlock, { once: true }); document.addEventListener('keydown', unlock, { once: true }); });
+})();
+</script>
+</body>
+</html>
