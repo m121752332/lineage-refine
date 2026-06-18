@@ -7,41 +7,41 @@
       "heading": "製作人",
       "role_label": true,
       "members": [
-        { "role": "專案負責人", "name": "Game" }
+        { "role": "專案負責人", "name": "Tiger" }
       ]
     },
     {
       "heading": "程式開發",
       "role_label": true,
       "members": [
-        { "role": "前端架構", "name": "Game" },
-        { "role": "遊戲邏輯", "name": "Game" },
-        { "role": "UI / UX", "name": "Game" }
+        { "role": "前端架構", "name": "Tiger" },
+        { "role": "遊戲邏輯", "name": "Tiger" },
+        { "role": "UI / UX", "name": "Tiger" }
       ]
     },
     {
       "heading": "美術設計",
       "role_label": true,
       "members": [
-        { "role": "介面美術", "name": "Game" },
-        { "role": "場景設計", "name": "Game" }
+        { "role": "介面美術", "name": "Tiger" },
+        { "role": "場景設計", "name": "Tiger" }
       ]
     },
     {
       "heading": "系統設計",
       "role_label": true,
       "members": [
-        { "role": "精煉機制設計", "name": "Game" },
-        { "role": "機率平衡", "name": "Game" },
-        { "role": "商店系統", "name": "Game" }
+        { "role": "精煉機制設計", "name": "Tiger" },
+        { "role": "機率平衡", "name": "Tiger" },
+        { "role": "商店系統", "name": "Tiger" }
       ]
     },
     {
       "heading": "品質測試",
       "role_label": true,
       "members": [
-        { "role": "功能測試", "name": "Game" },
-        { "role": "平衡測試", "name": "Game" }
+        { "role": "功能測試", "name": "Tiger" },
+        { "role": "平衡測試", "name": "Tiger" }
       ]
     },
     {

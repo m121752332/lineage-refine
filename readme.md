@@ -428,7 +428,7 @@ lineage-refine/
 
 # 執行方式
 
-## 方法一：直接開啟
+## 直接開啟
 
 ```text
 login.html
@@ -439,20 +439,6 @@ login.html
 * Chrome
 * Edge
 * Firefox
-
----
-
-## 方法二：本地 HTTP Server
-
-```bash
-python -m http.server 8000
-```
-
-瀏覽：
-
-```text
-http://localhost:8000/login.html
-```
 
 ---
 

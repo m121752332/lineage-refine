@@ -64,8 +64,8 @@ html,body{
 /* 滾動內容容器 */
 .credits-scroll{
   padding:100vh 28px 80px 32px;
-  animation:roll var(--duration,90s) linear forwards;
-  animation-play-state:running;
+  /* 動畫不在此宣告：必須等內容注入並量好高度後，由 JS 啟動，
+     否則動畫會在空元素上以預設值搶跑，導致只看到開頭就停住。 */
 }
 @keyframes roll{
   from{ transform:translateY(0); }
@@ -224,23 +224,18 @@ body{ animation:fadeIn 1.2s ease-out both; }
   <source src="static/bgm/lineage_logout.mp3" type="audio/mpeg">
 </audio>
 
+<!-- 字幕名單資料：以 <script> 載入，file:// 直接開啟也能讀取（不需 server） -->
+<script src="credits.js"></script>
 <script>
-(async function(){
-  /* ── 載入字幕資料 ── */
-  let data;
-  try {
-    const res = await fetch('credits.json');
-    data = await res.json();
-  } catch {
-    data = {
-      title:'天堂：經典版', subtitle:'精煉模擬器', tagline:'感謝您的遊玩',
-      sections:[
-        { heading:'製作', role_label:false,
-          members:[{ name:'Game' }] }
-      ],
-      closing:'點擊任意處返回登入'
-    };
-  }
+(function(){
+  /* ── 字幕資料 ──
+     由 credits.js 以 <script> 載入（file:// 也能讀），不需 HTTP server。
+     萬一 credits.js 載入失敗，使用最小安全備援避免整頁空白。 */
+  const data = window.CREDITS || {
+    title:'天堂：經典版', subtitle:'精煉模擬器', tagline:'感謝您的遊玩',
+    sections:[ { heading:'製作', role_label:false, members:[ { name:'Tiger' } ] } ],
+    closing:'點擊任意處返回登入'
+  };
 
   /* ── 渲染字幕 DOM ── */
   const container = document.getElementById('creditsScroll');
@@ -301,8 +296,10 @@ body{ animation:fadeIn 1.2s ease-out both; }
     const speed = 55; // px/s  可調
     const duration = Math.round(dist / speed);
 
-    container.style.setProperty('--duration', duration + 's');
     container.style.setProperty('--scroll-to', '-' + totalH + 'px');
+    // 先設好 --scroll-to，再以 JS 啟動動畫，確保 keyframes 取到正確距離，
+    // 而非在空元素上以預設值搶跑。
+    container.style.animation = 'roll ' + duration + 's linear forwards';
   });
 
   /* ── 音訊 ── */

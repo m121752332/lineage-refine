@@ -184,7 +184,8 @@ canvas{display:block;}
   min-width:160px;max-width:700px;box-shadow:0 4px 20px rgba(0,0,0,0.6);
   transition:transform 0.15s ease;
 }
-.msg-log{padding:5px 10px;max-height:110px;overflow-y:auto;pointer-events:none;flex:1;}
+.msg-log{padding:5px 10px;overflow-y:auto;pointer-events:auto;display:flex;flex-direction:column;}
+.msg-log>.msg-line:first-child{margin-top:auto;}
 .msg-log::-webkit-scrollbar{width:4px;}
 .msg-log::-webkit-scrollbar-track{background:rgba(0,0,0,0.2);}
 .msg-log::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
@@ -203,6 +204,8 @@ canvas{display:block;}
 }
 .ctrl-btn:hover{background:rgba(90,58,26,0.6);border-color:var(--gold);color:var(--gold2);}
 .ctrl-btn:active{transform:scale(0.92);}
+.ctrl-btn:disabled{opacity:0.3;cursor:not-allowed;}
+.ctrl-btn:disabled:hover{background:rgba(0,0,0,0.35);border-color:var(--border);color:var(--text);}
 .ctrl-btn.reset{color:var(--gold);font-size:13px;}
 .ctrl-btn.reset:hover{color:var(--gold2);}
 .ctrl-scale{color:var(--gold2);font-size:12px;font-weight:700;min-width:22px;text-align:center;pointer-events:none;font-variant-numeric:tabular-nums;}
@@ -458,6 +461,128 @@ canvas{display:block;}
   display:flex;align-items:center;justify-content:center;
   color:var(--gold2);font-size:14px;letter-spacing:3px;
 }
+
+/* ===== 子面板（儲值 / 配置 / 機率表） ===== */
+.sub-panel-overlay{
+  position:absolute;top:0;left:0;right:0;bottom:0;z-index:40;
+  pointer-events:none;
+}
+.sub-panel{
+  position:absolute;top:72px;left:50%;transform:translateX(-50%);
+  width:60vw;height:60vh;
+  background:var(--panel);border:2px solid var(--border);
+  display:flex;flex-direction:column;
+  box-shadow:0 8px 40px rgba(0,0,0,0.9);
+  pointer-events:all;overflow:hidden;
+}
+.sub-panel.sp-w-cashpay{width:40vw;}
+.sub-panel.sp-w-setting{width:60vw;}
+.sub-panel.sp-w-refine{width:60vw;}
+.sub-panel-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:9px 14px;background:var(--panel2);border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.sub-panel-title{color:var(--gold2);font-size:14px;font-weight:700;letter-spacing:2px;}
+.sub-panel-body{flex:1;overflow-y:auto;padding:16px;}
+.sp-section{
+  background:linear-gradient(180deg,#1c1408 0%,#120c04 100%);
+  border:1px solid var(--border2);margin-bottom:14px;
+}
+.sp-section-hd{
+  background:linear-gradient(90deg,#2a1c0a 0%,#1a1006 100%);
+  border-bottom:1px solid var(--border);padding:8px 14px;
+  color:var(--gold2);font-size:12px;font-weight:700;letter-spacing:2px;
+}
+.sp-section-body{padding:12px 14px;}
+.sp-note{font-size:10px;color:#555;margin-top:8px;line-height:1.7;}
+.sp-slider-row{display:flex;align-items:center;gap:14px;}
+.sp-slider-row span{color:#888;font-size:12px;white-space:nowrap;}
+.sp-slider-row input[type=range]{flex:1;accent-color:var(--gold);}
+.sp-slider-val{color:var(--gold2);font-size:20px;font-weight:700;min-width:46px;text-align:right;}
+.sp-rate-row{display:flex;align-items:center;gap:12px;}
+.sp-rate-row span{color:#888;font-size:12px;}
+.sp-rate-row input{
+  width:90px;background:var(--panel2);border:1px solid var(--border);
+  color:var(--gold2);font-size:15px;font-family:inherit;
+  padding:5px 8px;outline:none;text-align:right;
+}
+.sp-rate-row input:focus{border-color:var(--gold);}
+.sp-price-grid{
+  display:grid;grid-template-columns:60px repeat(2,1fr);gap:1px;
+  background:var(--border2);border:1px solid var(--border2);
+}
+.sp-price-grid-hd{background:#221608;padding:6px 8px;color:var(--gold);font-size:11px;font-weight:700;text-align:center;}
+.sp-price-cell{background:var(--panel2);padding:5px 6px;display:flex;align-items:center;}
+.sp-price-cell input{
+  flex:1;background:#0e0a04;border:1px solid var(--border2);
+  color:var(--gold2);font-size:11px;font-family:inherit;
+  padding:3px 6px;outline:none;text-align:right;min-width:0;
+}
+.sp-price-cell input:focus{border-color:var(--gold);}
+.sp-btn-row{display:flex;gap:8px;margin-top:14px;}
+.sp-btn{
+  padding:7px 20px;font-size:12px;font-family:inherit;cursor:pointer;
+  border:1px solid var(--border);color:var(--text);background:var(--panel2);transition:all 0.15s;
+}
+.sp-btn:hover{background:var(--border);color:var(--gold2);}
+.sp-btn.primary{border-color:var(--gold);color:var(--gold2);}
+.sp-btn.primary:hover{background:rgba(90,58,26,0.6);}
+/* cashpay */
+.cp-amount-row{display:flex;gap:8px;align-items:center;margin-bottom:6px;}
+.cp-amount-row input{
+  flex:1;height:40px;background:var(--panel2);border:1px solid var(--border);
+  color:var(--gold2);font-size:18px;font-family:inherit;text-align:right;
+  padding:0 12px;outline:none;
+}
+.cp-amount-row input:focus{border-color:var(--gold);}
+.cp-presets{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 14px;}
+.cp-preset-btn{
+  padding:5px 14px;background:var(--panel2);border:1px solid var(--border2);
+  color:var(--text);font-size:12px;cursor:pointer;transition:all 0.1s;
+}
+.cp-preset-btn:hover,.cp-preset-btn.active{border-color:var(--gold);color:var(--gold2);background:rgba(90,58,26,0.5);}
+.cp-preview{
+  background:rgba(200,160,0,0.06);border:1px solid rgba(200,160,0,0.25);
+  padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;
+}
+.cp-preview-coins{color:var(--gold2);font-size:22px;font-weight:700;}
+/* refine table */
+.sp-info-bar{
+  background:rgba(90,58,26,0.15);border:1px solid var(--border2);
+  padding:8px 12px;font-size:11px;color:#888;display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px;
+}
+.sp-info-bar .tag{display:inline-flex;align-items:center;gap:5px;}
+.sp-dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+.sp-bonus-card{
+  background:var(--panel2);border:1px solid var(--border2);
+  padding:12px 16px;margin-bottom:14px;font-size:12px;
+  display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
+}
+.sp-bonus-item{text-align:center;}
+.sp-bonus-name{font-size:11px;color:#888;margin-bottom:4px;}
+.sp-bonus-val{font-size:15px;font-weight:700;}
+.sp-rate-table-wrap{overflow-x:auto;margin-bottom:20px;}
+table.sp-rate-table{width:100%;border-collapse:collapse;font-size:12px;background:var(--panel);}
+table.sp-rate-table th{
+  background:linear-gradient(180deg,#2a1c0a 0%,#1a1206 100%);
+  color:var(--gold2);font-weight:700;padding:7px 8px;
+  border:1px solid var(--border2);white-space:nowrap;text-align:center;
+}
+table.sp-rate-table td{
+  padding:6px 8px;border:1px solid var(--border2);
+  text-align:center;font-family:monospace;
+}
+table.sp-rate-table tr:hover td{background:rgba(90,58,26,0.2);}
+table.sp-rate-table td.rt-lv{font-weight:700;color:var(--gold2);font-family:inherit;}
+table.sp-rate-table td.rt-safe-lbl{color:#22aa55;font-size:10px;}
+tr.sp-safe-row td{background:rgba(20,60,20,0.18)!important;}
+tr.sp-safe-row:hover td{background:rgba(20,60,20,0.3)!important;}
+.rt-safe{color:#22aa55;font-weight:700;}
+.rt-high{color:#66cc44;}
+.rt-mid1{color:#ccaa22;}
+.rt-mid2{color:#cc7722;}
+.rt-danger{color:#cc2222;}
 </style>
 </head>
 <body>
@@ -484,20 +609,237 @@ canvas{display:block;}
       </div>
     </div>
 
+    <!-- ===== 子面板 ===== -->
+    <div v-if="subPanel" class="sub-panel-overlay">
+      <div class="sub-panel" :class="'sp-w-'+subPanel">
+        <div class="sub-panel-header">
+          <span class="sub-panel-title">
+            <template v-if="subPanel==='cashpay'">💳 天幣儲值</template>
+            <template v-if="subPanel==='setting'">⚙ 歐林收購配置</template>
+            <template v-if="subPanel==='refine'">📊 精煉機率表</template>
+          </span>
+          <button class="panel-close" @click="closeSubPanel">✕</button>
+        </div>
+        <div class="sub-panel-body">
+
+          <!-- ── 儲值 ── -->
+          <template v-if="subPanel==='cashpay'">
+            <div class="sp-section">
+              <div class="sp-section-hd">💳 選擇儲值金額</div>
+              <div class="sp-section-body">
+                <div class="sp-note" style="margin-bottom:10px;">
+                  官方匯率：新台幣 <span style="color:var(--gold2)">1 元</span> = 天幣 <span style="color:var(--gold2)">{{priceConfig.twdRate}}</span>
+                  &nbsp;│&nbsp;上限 <span style="color:var(--gold2)">10萬元 / 1,000萬天幣</span>
+                </div>
+                <div style="color:var(--text);font-size:13px;margin-bottom:8px;">輸入儲值金額（新台幣）</div>
+                <div class="cp-amount-row">
+                  <input type="number" v-model.number="cpTwd" min="1" max="100000"/>
+                  <span style="color:#888;font-size:13px;">元</span>
+                </div>
+                <input type="range" style="width:100%;accent-color:var(--gold);margin-bottom:4px;" v-model.number="cpTwd" min="100" max="100000" step="100"/>
+                <div class="cp-presets">
+                  <span style="color:#888;font-size:11px;align-self:center;">快速選擇：</span>
+                  <button v-for="p in cpPresets" :key="p"
+                    class="cp-preset-btn" :class="{active:cpTwd===p}" @click="cpTwd=p">
+                    {{p>=10000?(p/10000)+'萬':p.toLocaleString()}}元
+                  </button>
+                </div>
+                <div class="cp-preview">
+                  <div>
+                    <div style="color:#888;font-size:12px;">儲值 {{cpTwd.toLocaleString()}} 元，可獲得</div>
+                    <div style="font-size:10px;color:#555;margin-top:2px;">匯率 × {{priceConfig.twdRate}} 計算</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div class="cp-preview-coins">{{fmt(cpCoins)}}</div>
+                    <div style="font-size:11px;color:#666;margin-top:2px;">天幣</div>
+                  </div>
+                </div>
+                <div style="text-align:right;font-size:12px;color:#666;margin-bottom:12px;">
+                  儲值後餘額：<span style="color:var(--gold2)">{{fmt(gold+cpCoins)}} 天幣</span>
+                </div>
+                <div class="sp-btn-row">
+                  <button class="sp-btn primary" @click="doCpTopup" :disabled="cpTwd<1">確認儲值 +{{fmt(cpCoins)}} 天幣</button>
+                  <button class="sp-btn" @click="closeSubPanel">取消</button>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- ── 配置 ── -->
+          <template v-if="subPanel==='setting'">
+            <div class="sp-section">
+              <div class="sp-section-hd">⚡ 最高精煉等級設定</div>
+              <div class="sp-section-body">
+                <div class="sp-slider-row">
+                  <span>+10</span>
+                  <input type="range" v-model.number="subSet.maxEnhLevel" min="10" max="20" step="1"/>
+                  <span>+20</span>
+                  <div class="sp-slider-val">+{{subSet.maxEnhLevel}}</div>
+                </div>
+                <div class="sp-note">目前設定：裝備最高可精煉至 <span style="color:var(--gold2)">+{{subSet.maxEnhLevel}}</span></div>
+              </div>
+            </div>
+            <div class="sp-section">
+              <div class="sp-section-hd">⚔ 武器收購價格配置（+1 ~ +{{subSet.maxEnhLevel}}）</div>
+              <div class="sp-section-body" style="overflow-x:auto;">
+                <div class="sp-price-grid">
+                  <div class="sp-price-grid-hd">等級</div>
+                  <div class="sp-price-grid-hd">牌價（天幣）</div>
+                  <div class="sp-price-grid-hd">自訂售價（0=牌價）</div>
+                  <template v-for="lv in subSet.maxEnhLevel" :key="'swrow'+lv">
+                    <div class="sp-price-cell" style="justify-content:center;background:#0e0a04;">
+                      <span style="color:var(--gold);font-size:11px;">+{{lv}}</span>
+                    </div>
+                    <div class="sp-price-cell"><input type="number" v-model.number="subSet.weapon.list[lv-1]" min="0" step="1000"/></div>
+                    <div class="sp-price-cell"><input type="number" v-model.number="subSet.weapon.sell[lv-1]" min="0" step="1000"/></div>
+                  </template>
+                </div>
+                <div class="sp-note">牌價為最低收購價；若自訂售價高於牌價，以售價成交。</div>
+              </div>
+            </div>
+            <div class="sp-section">
+              <div class="sp-section-hd">🛡 防具收購價格配置（+1 ~ +{{subSet.maxEnhLevel}}）</div>
+              <div class="sp-section-body" style="overflow-x:auto;">
+                <div class="sp-price-grid">
+                  <div class="sp-price-grid-hd">等級</div>
+                  <div class="sp-price-grid-hd">牌價（天幣）</div>
+                  <div class="sp-price-grid-hd">自訂售價（0=牌價）</div>
+                  <template v-for="lv in subSet.maxEnhLevel" :key="'sarow'+lv">
+                    <div class="sp-price-cell" style="justify-content:center;background:#0e0a04;">
+                      <span style="color:var(--gold);font-size:11px;">+{{lv}}</span>
+                    </div>
+                    <div class="sp-price-cell"><input type="number" v-model.number="subSet.armor.list[lv-1]" min="0" step="1000"/></div>
+                    <div class="sp-price-cell"><input type="number" v-model.number="subSet.armor.sell[lv-1]" min="0" step="1000"/></div>
+                  </template>
+                </div>
+              </div>
+            </div>
+            <div class="sp-section">
+              <div class="sp-section-hd">💹 儲值匯率設定</div>
+              <div class="sp-section-body">
+                <div class="sp-rate-row">
+                  <span>1 新台幣 =</span>
+                  <input type="number" v-model.number="subSet.twdRate" min="1" max="10000"/>
+                  <span>天幣</span>
+                </div>
+                <div class="sp-note" style="margin-top:10px;">
+                  儲值 <span style="color:var(--gold2)">1,000 元</span> 可獲得
+                  <span style="color:var(--gold2)">{{(1000*subSet.twdRate).toLocaleString()}} 天幣</span>
+                </div>
+              </div>
+            </div>
+            <div class="sp-btn-row">
+              <button class="sp-btn primary" @click="subSetSave">✓ 儲存配置</button>
+              <button class="sp-btn" @click="subSetReset">↺ 恢復預設</button>
+              <button class="sp-btn" @click="closeSubPanel">取消</button>
+            </div>
+          </template>
+
+          <!-- ── 機率表 ── -->
+          <template v-if="subPanel==='refine'">
+            <div v-if="!refineData" style="text-align:center;color:#555;font-size:14px;padding:40px;">載入機率資料中…</div>
+            <template v-else>
+              <div class="sp-info-bar">
+                <span class="tag"><span class="sp-dot" style="background:#22aa55;"></span>100% 安定範圍</span>
+                <span class="tag"><span class="sp-dot" style="background:#ccaa22;"></span>44%~77% 注意</span>
+                <span class="tag"><span class="sp-dot" style="background:#cc7722;"></span>11%~33% 高風險</span>
+                <span class="tag"><span class="sp-dot" style="background:#cc2222;"></span>≤5% 極限挑戰</span>
+              </div>
+              <div style="color:var(--gold);font-size:12px;font-weight:700;letter-spacing:2px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border2);">📜 卷軸加成說明</div>
+              <div class="sp-bonus-card">
+                <div class="sp-bonus-item">
+                  <div class="sp-bonus-name">普通卷軸</div>
+                  <div class="sp-bonus-val" style="color:var(--text);">+{{refineData.scroll_bonus.normal}}%</div>
+                  <div style="font-size:10px;color:#555;margin-top:3px;">成功固定+1，失敗爆炸</div>
+                </div>
+                <div class="sp-bonus-item">
+                  <div class="sp-bonus-name">✨ 祝福卷軸</div>
+                  <div class="sp-bonus-val" style="color:var(--gold2);">+{{refineData.scroll_bonus.blessed}}%</div>
+                  <div style="font-size:10px;color:#555;margin-top:3px;">成功+1或+2（各50%），失敗爆炸</div>
+                </div>
+                <div class="sp-bonus-item">
+                  <div class="sp-bonus-name">💀 詛咒卷軸</div>
+                  <div class="sp-bonus-val" style="color:#cc44cc;">+{{refineData.scroll_bonus.cursed}}%</div>
+                  <div style="font-size:10px;color:#555;margin-top:3px;">成功扣-1，失敗必爆炸</div>
+                </div>
+              </div>
+              <div style="color:var(--gold);font-size:12px;font-weight:700;letter-spacing:2px;margin-bottom:8px;">⚔ 武器精煉機率</div>
+              <div class="sp-rate-table-wrap">
+                <table class="sp-rate-table">
+                  <thead>
+                    <tr>
+                      <th rowspan="2">精煉等級</th>
+                      <th rowspan="2" style="color:#aaa;background:linear-gradient(180deg,#1e1e1e,#141414);">基礎成功率</th>
+                      <th colspan="3">含卷軸加成後成功率</th>
+                      <th rowspan="2">狀態</th>
+                    </tr>
+                    <tr><th>普通</th><th style="color:var(--gold2);">✨祝福</th><th style="color:#cc44cc;">💀詛咒</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="r in refineData.weapon.rates" :key="r.from" :class="{'sp-safe-row':r.safe}">
+                      <td class="rt-lv">+{{r.from}}→+{{r.to}}</td>
+                      <td :class="rtClass(r.base)">{{r.base.toFixed(6)}}%</td>
+                      <td :class="rtClass(rtClamp(r.base+refineData.scroll_bonus.normal))">{{rtClamp(r.base+refineData.scroll_bonus.normal).toFixed(6)}}%</td>
+                      <td :class="rtClass(rtClamp(r.base+refineData.scroll_bonus.blessed))">{{rtClamp(r.base+refineData.scroll_bonus.blessed).toFixed(6)}}%</td>
+                      <td :class="rtClass(rtClamp(r.base+refineData.scroll_bonus.cursed))">{{rtClamp(r.base+refineData.scroll_bonus.cursed).toFixed(6)}}%</td>
+                      <td class="rt-safe-lbl">{{r.safe?'✔ 安定':''}}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div style="color:var(--gold);font-size:12px;font-weight:700;letter-spacing:2px;margin-bottom:8px;">🛡 防具精煉機率</div>
+              <div class="sp-rate-table-wrap">
+                <table class="sp-rate-table">
+                  <thead>
+                    <tr>
+                      <th rowspan="2">精煉等級</th>
+                      <th rowspan="2" style="color:#aaa;background:linear-gradient(180deg,#1e1e1e,#141414);">基礎成功率</th>
+                      <th colspan="3">含卷軸加成後成功率</th>
+                      <th rowspan="2">狀態</th>
+                    </tr>
+                    <tr><th>普通</th><th style="color:var(--gold2);">✨祝福</th><th style="color:#cc44cc;">💀詛咒</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="r in refineData.armor.rates" :key="r.from" :class="{'sp-safe-row':r.safe}">
+                      <td class="rt-lv">+{{r.from}}→+{{r.to}}</td>
+                      <td :class="rtClass(r.base)">{{r.base.toFixed(6)}}%</td>
+                      <td :class="rtClass(rtClamp(r.base+refineData.scroll_bonus.normal))">{{rtClamp(r.base+refineData.scroll_bonus.normal).toFixed(6)}}%</td>
+                      <td :class="rtClass(rtClamp(r.base+refineData.scroll_bonus.blessed))">{{rtClamp(r.base+refineData.scroll_bonus.blessed).toFixed(6)}}%</td>
+                      <td :class="rtClass(rtClamp(r.base+refineData.scroll_bonus.cursed))">{{rtClamp(r.base+refineData.scroll_bonus.cursed).toFixed(6)}}%</td>
+                      <td class="rt-safe-lbl">{{r.safe?'✔ 安定':''}}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div style="font-size:11px;color:#444;text-align:right;padding:6px 0;">
+                {{refineJsonLoaded?'📄 來自 refine_rates.json（即時）':'📄 內建機率資料（如需即時編輯 JSON 請以 HTTP 伺服器開啟）'}}
+              </div>
+            </template>
+          </template>
+
+        </div>
+      </div>
+    </div>
+    <!-- ===== /子面板 ===== -->
+
     <div class="msg-log-wrapper" ref="msgLogWrapper" :style="{
       transform: `scale(${msgLogScale / 5})`,
       transformOrigin: 'bottom left'
     }">
-      <div class="msg-log" ref="msgLog">
+      <div class="msg-log" ref="msgLog" :style="{height: (msgLogRows*MSG_ROW_H+MSG_LOG_PAD) + 'px'}">
         <div v-for="(m,i) in messages" :key="i" class="msg-line" :class="'msg-'+m.type">{{m.text}}</div>
       </div>
       <div class="msg-log-controls">
         <span class="ctrl-label">📋</span>
+        <button class="ctrl-btn" @click="changeMsgLogRows(1)" title="增加顯示列數（最多 +5）" :disabled="msgLogRows>=MSG_ROWS_MAX">↑</button>
+        <span class="ctrl-scale" title="目前顯示列數">{{ msgLogRows }}列</span>
+        <button class="ctrl-btn" @click="changeMsgLogRows(-1)" title="減少顯示列數" :disabled="msgLogRows<=MSG_ROWS_MIN">↓</button>
+        <span class="ctrl-divider">│</span>
         <button class="ctrl-btn" @click="changeMsgLogScale(-1)" title="縮小">−</button>
         <span class="ctrl-scale">{{ msgLogScale }}</span>
         <button class="ctrl-btn" @click="changeMsgLogScale(1)" title="放大">+</button>
         <span class="ctrl-divider">│</span>
-        <button class="ctrl-btn reset" @click="resetMsgLogScale" title="重置為預設 (5)">↺</button>
+        <button class="ctrl-btn reset" @click="resetMsgLogScale" title="重置（縮放與列數）">↺</button>
       </div>
     </div>
 
@@ -814,6 +1156,12 @@ createApp({
 
     // ─── 消息日誌縮放比率 (1~10, 預設5) ───
     const msgLogScale=ref(5);
+    // ─── 消息日誌顯示列數 (基底3列，可動態增加至 +5，共3~8列) ───
+    const MSG_ROW_H=22;        // 單列高度 (line-height 1.8 × 12px ≈ 21.6，取22確保完整顯示)
+    const MSG_LOG_PAD=10;      // 上下內距總和
+    const MSG_ROWS_MIN=3;      // 基底可見列數
+    const MSG_ROWS_MAX=8;      // 基底3 + 動態5
+    const msgLogRows=ref(MSG_ROWS_MIN);
 
     // ─── 配置檔 (牌價 + 自訂售價) ───
     const DEFAULT_WEAPON_LIST=[
@@ -837,6 +1185,46 @@ createApp({
         sell:Array(20).fill(0),
       },
     });
+
+    // ─── 子面板狀態 ───
+    const subPanel=ref(null);
+    const cpTwd=ref(1000);
+    const cpPresets=[100,300,500,1000,3000,5000,10000,30000,50000,100000];
+    const cpCoins=computed(()=>Math.max(0,(cpTwd.value||0)*priceConfig.twdRate));
+    const subSet=reactive({
+      maxEnhLevel:12,twdRate:100,
+      weapon:{list:[...DEFAULT_WEAPON_LIST],sell:Array(20).fill(0)},
+      armor:{list:[...DEFAULT_ARMOR_LIST],sell:Array(20).fill(0)},
+    });
+    const refineData=ref(null);
+    const refineJsonLoaded=ref(false);
+    const REFINE_BUILTIN={
+      scroll_bonus:{normal:0,blessed:20,cursed:40},
+      weapon:{name:'武器',safe_level:6,rates:[
+        {from:0,to:1,base:100,safe:true},{from:1,to:2,base:100,safe:true},
+        {from:2,to:3,base:100,safe:true},{from:3,to:4,base:100,safe:true},
+        {from:4,to:5,base:100,safe:true},{from:5,to:6,base:100,safe:true},
+        {from:6,to:7,base:77,safe:false},{from:7,to:8,base:66,safe:false},
+        {from:8,to:9,base:55,safe:false},{from:9,to:10,base:44,safe:false},
+        {from:10,to:11,base:33,safe:false},{from:11,to:12,base:22,safe:false},
+        {from:12,to:13,base:11,safe:false},{from:13,to:14,base:5,safe:false},
+        {from:14,to:15,base:5,safe:false},{from:15,to:16,base:5,safe:false},
+        {from:16,to:17,base:5,safe:false},{from:17,to:18,base:5,safe:false},
+        {from:18,to:19,base:5,safe:false},{from:19,to:20,base:5,safe:false},
+      ]},
+      armor:{name:'防具',safe_level:4,rates:[
+        {from:0,to:1,base:100,safe:true},{from:1,to:2,base:100,safe:true},
+        {from:2,to:3,base:100,safe:true},{from:3,to:4,base:100,safe:true},
+        {from:4,to:5,base:77,safe:false},{from:5,to:6,base:66,safe:false},
+        {from:6,to:7,base:55,safe:false},{from:7,to:8,base:44,safe:false},
+        {from:8,to:9,base:33,safe:false},{from:9,to:10,base:22,safe:false},
+        {from:10,to:11,base:11,safe:false},{from:11,to:12,base:5,safe:false},
+        {from:12,to:13,base:5,safe:false},{from:13,to:14,base:5,safe:false},
+        {from:14,to:15,base:5,safe:false},{from:15,to:16,base:5,safe:false},
+        {from:16,to:17,base:5,safe:false},{from:17,to:18,base:5,safe:false},
+        {from:18,to:19,base:5,safe:false},{from:19,to:20,base:5,safe:false},
+      ]},
+    };
 
     // ─── 地圖常數 ───
     let ctx=null;
@@ -952,9 +1340,12 @@ createApp({
     // ─── 工具函數 ───
     function fmt(n){return n.toLocaleString();}
     function addMsg(text,type='white'){
+      // 只有在已貼近底部時才自動捲動，避免打斷使用者往上翻閱歷史訊息
+      const el=msgLog.value;
+      const stick = !el || (el.scrollHeight-el.scrollTop-el.clientHeight < 40);
       messages.value.push({text,type});
       if(messages.value.length>60)messages.value.shift();
-      nextTick(()=>{if(msgLog.value)msgLog.value.scrollTop=msgLog.value.scrollHeight;});
+      nextTick(()=>{if(msgLog.value&&stick)msgLog.value.scrollTop=msgLog.value.scrollHeight;});
     }
     function showToast(text,color='var(--gold)'){
       toast.show=false;
@@ -1010,10 +1401,64 @@ createApp({
       loadConfigFrom(cfg);
     }
 
-    // ─── 頁面導覽 ───
-    function goSetting(){ persistAll(); window.location.href='setting.html'; }
-    function goCashPay(){ persistAll(); window.location.href='cash_pay.html'; }
-    function goRefineTable(){ window.open('refine_table.html','_blank'); }
+    // ─── 子面板 ───
+    function closeSubPanel(){ subPanel.value=null; }
+    function goSetting(){
+      subSet.maxEnhLevel=maxEnhLevel.value;
+      subSet.twdRate=priceConfig.twdRate;
+      subSet.weapon.list=[...priceConfig.weapon.list];
+      subSet.weapon.sell=[...priceConfig.weapon.sell];
+      subSet.armor.list=[...priceConfig.armor.list];
+      subSet.armor.sell=[...priceConfig.armor.sell];
+      subPanel.value='setting';
+    }
+    function goCashPay(){ subPanel.value='cashpay'; }
+    function goRefineTable(){
+      if(!refineData.value) loadRefineData();
+      subPanel.value='refine';
+    }
+    function doCpTopup(){
+      const amount=Math.min(100000,Math.max(1,cpTwd.value||1));
+      const coins=amount*priceConfig.twdRate;
+      gold.value+=coins;
+      showToast(`💳 儲值成功！+${fmt(coins)} 天幣`,'var(--gold)');
+    }
+    function subSetSave(){
+      maxEnhLevel.value=subSet.maxEnhLevel;
+      priceConfig.twdRate=subSet.twdRate;
+      priceConfig.weapon.list=[...subSet.weapon.list];
+      priceConfig.weapon.sell=[...subSet.weapon.sell];
+      priceConfig.armor.list=[...subSet.armor.list];
+      priceConfig.armor.sell=[...subSet.armor.sell];
+      showToast('✓ 配置已儲存','var(--gold)');
+      closeSubPanel();
+    }
+    function subSetReset(){
+      subSet.maxEnhLevel=12; subSet.twdRate=100;
+      subSet.weapon.list=[...DEFAULT_WEAPON_LIST]; subSet.weapon.sell=Array(20).fill(0);
+      subSet.armor.list=[...DEFAULT_ARMOR_LIST];  subSet.armor.sell=Array(20).fill(0);
+      showToast('↺ 已恢復預設值');
+    }
+    async function loadRefineData(){
+      // 先以內建資料即時顯示（離線 / file:// 也能正常呈現）
+      if(!refineData.value) refineData.value=REFINE_BUILTIN;
+      try{
+        const res=await fetch('refine_rates.json');
+        if(!res.ok) throw new Error('HTTP '+res.status);
+        const data=await res.json();
+        if(data.weapon?.rates && data.armor?.rates && data.scroll_bonus){
+          refineData.value=data; refineJsonLoaded.value=true;
+        }
+      }catch(e){ console.warn('refine_rates.json 未載入（將使用內建機率）：',e.message); }
+    }
+    function rtClamp(v){ return Math.min(100,Math.max(0,v)); }
+    function rtClass(v){
+      if(v>=100) return 'rt-safe';
+      if(v>=44)  return 'rt-high';
+      if(v>=22)  return 'rt-mid1';
+      if(v>=11)  return 'rt-mid2';
+      return 'rt-danger';
+    }
     function doLogout(){
       persistAll();
       const player=JSON.parse(localStorage.getItem('lineage_player')||'{}');
@@ -1285,7 +1730,16 @@ createApp({
       const newVal=msgLogScale.value+delta;
       if(newVal>=1&&newVal<=10){ msgLogScale.value=newVal; }
     }
-    function resetMsgLogScale(){ msgLogScale.value=6; }
+    // ─── 消息日誌顯示列數控制 (3~8) ───
+    function changeMsgLogRows(delta){
+      const newVal=msgLogRows.value+delta;
+      if(newVal>=MSG_ROWS_MIN&&newVal<=MSG_ROWS_MAX){
+        msgLogRows.value=newVal;
+        // 變更列數後維持貼底，方便看到最新訊息
+        nextTick(()=>{if(msgLog.value)msgLog.value.scrollTop=msgLog.value.scrollHeight;});
+      }
+    }
+    function resetMsgLogScale(){ msgLogScale.value=5; msgLogRows.value=MSG_ROWS_MIN; }
 
     // ══════════════════════════════════════════
     //  CANVAS 渲染引擎
@@ -1857,6 +2311,8 @@ createApp({
       buyModal,hammerMode,result,cursorPos,
       priceConfig,olinSellSelect,
       msgLogScale, changeMsgLogScale, resetMsgLogScale,
+      msgLogRows, changeMsgLogRows,
+      MSG_ROW_H, MSG_LOG_PAD, MSG_ROWS_MIN, MSG_ROWS_MAX,
       sortType, totalItems, usedSlots, applySort,
       maxEnhLevel,
       openBuy,confirmBuy,sellItem,openEnhance,doEnhance,
@@ -1866,6 +2322,10 @@ createApp({
       selectOlinSell,doOlinSell,
       goSetting,goCashPay,goRefineTable,doLogout,
       DEFAULT_WEAPON_LIST,DEFAULT_ARMOR_LIST,
+      subPanel,closeSubPanel,
+      cpTwd,cpPresets,cpCoins,doCpTopup,
+      subSet,subSetSave,subSetReset,
+      refineData,refineJsonLoaded,rtClamp,rtClass,
     };
   }
 }).mount('#app');
