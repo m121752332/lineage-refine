@@ -1,537 +1,300 @@
-# 天堂：經典版（Lineage Classic）精煉裝備前端遊戲
+# 天堂：經典版 — 裝備精煉模擬器
 
-> 基於 Vue 3 開發的純前端裝備強化模擬遊戲，重現《天堂 Lineage》經典武器、防具精煉體驗。
+> 純前端的《天堂 Lineage》裝備強化模擬遊戲，以 Vue 3 + localStorage 實作，無需後端即可完整執行。
 
 ![Vue](https://img.shields.io/badge/Vue-3.4.21-42b883)
-![Frontend](https://img.shields.io/badge/Frontend-Pure%20Frontend-blue)
+![Frontend](https://img.shields.io/badge/架構-純前端-blue)
+![Storage](https://img.shields.io/badge/儲存-localStorage-orange)
 ![License](https://img.shields.io/badge/License-MIT-green)
-![Storage](https://img.shields.io/badge/Storage-localStorage-orange)
 
 ---
 
-## 專案介紹
+## 目錄
 
-這是一款以《天堂》裝備強化系統為核心玩法的前端模擬遊戲。
-
-玩家可透過購買卷軸、強化武器與防具、出售裝備獲取天幣，並挑戰高等級精煉帶來的刺激感與收益。
-
-本專案採用：
-
-* Vue 3 Reactive State
-* 純 HTML + CSS + JavaScript
-* localStorage 資料持久化
-* JSON 機率配置驅動
-
-無需後端即可完整運行。
+- [專案簡介](#專案簡介)
+- [快速開始](#快速開始)
+- [專案結構](#專案結構)
+- [頁面流程](#頁面流程)
+- [技術架構](#技術架構)
+- [資料層設計](#資料層設計)
+- [精煉系統](#精煉系統)
+- [功能一覽](#功能一覽)
+- [UI 設計系統](#ui-設計系統)
+- [未來規劃](#未來規劃)
 
 ---
 
-# 功能特色
+## 專案簡介
 
-## 裝備強化系統
+重現《天堂 Lineage》裝備強化（精煉）系統的瀏覽器遊戲模擬器。玩家可購買卷軸、強化武器與防具、透過歐林 NPC 出售裝備獲取天幣，挑戰高等級精煉的機率刺激。
 
-支援：
+**設計目標：**
 
-* 武器強化（+0 ~ +20）
-* 防具強化（+0 ~ +20）
-* 普通卷軸
-* 祝福卷軸
-* 詛咒卷軸
-
-### 安定值
-
-| 類型 | 安定範圍    |
-| -- | ------- |
-| 武器 | +0 ~ +5 |
-| 防具 | +0 ~ +3 |
-
-安定範圍內強化成功率為：
-
-```text
-100%
-```
+- 完整模擬原版精煉手感（機率、爆炸、安定值）
+- 純靜態檔案部署，無需任何後端
+- 機率資料與程式邏輯分離，便於客製化私服規則
 
 ---
 
-### 卷軸效果
+## 快速開始
 
-#### 普通卷軸
+### 環境需求
 
-成功：
+僅需 Node.js（已安裝即可）與現代瀏覽器（Chrome / Edge / Firefox）。
 
-```text
-+1
+### 一鍵啟動（推薦）
+
+| 平台 | 方式 |
+|------|------|
+| **Windows** | 雙擊 `start.bat`，或在終端執行 `node start.js` |
+| **macOS / Linux** | `chmod +x start.sh && ./start.sh`，或 `node start.js` |
+
+腳本會自動執行 `npx serve .` 並在伺服器就緒後開啟瀏覽器。
+
+### 手動啟動
+
+```bash
+npx serve .
+# 然後在瀏覽器開啟 http://localhost:3000
 ```
 
-失敗：
+> **注意：** 直接用 `file://` 開啟 HTML 會導致 `refine_rates.json` 的 CORS 錯誤，機率將降級使用程式內的預設值。
 
-```text
-裝備消失
-```
+### 進入遊戲
+
+1. 伺服器啟動後瀏覽器自動導向 `login.html`
+2. 輸入角色名稱完成登入，即可進入主遊戲
 
 ---
 
-#### 祝福卷軸
+## 專案結構
 
-成功：
-
-```text
-50% +1
-50% +2
 ```
-
-失敗：
-
-```text
-裝備消失
-```
-
----
-
-#### 詛咒卷軸
-
-成功：
-
-```text
-裝備 -1
-```
-
-失敗：
-
-```text
-裝備消失
-```
-
-額外提供：
-
-```text
-+40% 成功率加成
-```
-
----
-
-## 100 格擴充背包
-
-背包容量：
-
-```text
-100 Slots
-```
-
-排列方式：
-
-```text
-5 × 20 Grid
-```
-
-支援：
-
-* 預設排序
-* 依類型排序
-* 依名稱排序
-* 依強化等級排序
-
-快速操作：
-
-* 直接強化
-* 直接出售
-* 鐵鎚模式
-
----
-
-## 鐵鎚模式
-
-為大量強化而設計。
-
-啟動後：
-
-```text
-🔨 點擊卷軸
-→ 點擊裝備
-→ 自動執行強化
-```
-
-畫面提示：
-
-```text
-🔨 祝福卷軸 ─ 點擊武器格子 │ Esc 取消
-```
-
-適合：
-
-* 衝高武器
-* 批量點裝
-* 減少重複操作
-
----
-
-## 歐林收購系統
-
-可自訂：
-
-* 各等級牌價
-* 玩家售價
-* 精煉上限
-
-例如：
-
-| 等級  | 收購價    |
-| --- | ------ |
-| +1  | 1,000  |
-| +5  | 5,000  |
-| +10 | 50,000 |
-| +20 | 自訂     |
-
-售價可高於牌價。
-
----
-
-## 天幣儲值系統
-
-預設匯率：
-
-```text
-1 TWD = 100 Gold
-```
-
-支援快速金額：
-
-```text
-100
-300
-500
-1000
-3000
-5000
-10000
-...
-100000
-```
-
-最大儲值：
-
-```text
-100,000 元
-=
-10,000,000 Gold
-```
-
----
-
-## 精煉機率查詢
-
-提供獨立頁面：
-
-```text
-refine_table.html
-```
-
-可查詢：
-
-* 基礎成功率
-* 卷軸加成後成功率
-* 各階段精煉機率
-
-顏色標示：
-
-| 顏色 | 意義   |
-| -- | ---- |
-| 綠色 | 100% |
-| 黃色 | ≥44% |
-| 橘色 | ≥11% |
-| 紅色 | ≤5%  |
-
----
-
-# 技術架構
-
-| 項目   | 技術             |
-| ---- | -------------- |
-| 前端框架 | Vue 3.4.21     |
-| UI   | HTML5          |
-| 樣式   | CSS3           |
-| 版面   | Flexbox / Grid |
-| 資料配置 | JSON           |
-| 資料儲存 | localStorage   |
-| 字體   | Noto Serif TC  |
-| 數字字體 | Noto Sans Mono |
-
----
-
-# 專案結構
-
-```text
 lineage-refine/
 │
-├── lineage-refine.html
-├── login.html
-├── refine_table.html
-├── setting.html
-├── cash_pay.html
+├── index.html              # 入口，自動轉址 → login.html
+├── login.html              # 登入頁
+├── lineage.html            # 主遊戲（~1900 行，Vue 3 單檔）
+├── setting.html            # 歐林 NPC 收購價格設定
+├── cash_pay.html           # 天幣儲值
+├── refine_table.html       # 精煉機率查詢表
+├── logout.html             # 登出片尾動畫
 │
-├── refine_rates.json
-├── readme.md
+├── refine_rates.json       # 精煉機率設定（可獨立調整，無需改程式碼）
 │
-├── lineage_jpg/
-│   ├── lineage_chat.jpg
-│   ├── lineage_frame.jpg
-│   ├── lineage_login.gif
-│   ├── lineage_role.png
-│   └── lineage_room.jpg
+├── start.js                # 跨平台啟動腳本（server + 自動開瀏覽器）
+├── start.bat               # Windows 一鍵啟動
+├── start.sh                # macOS / Linux 一鍵啟動
 │
-├── docs/
-├── data/
+├── static/
+│   ├── login_bg.png        # 登入頁背景
+│   └── bgm/
+│       ├── lineage_login.mp3
+│       └── lineage_game.mp3
 │
-└── .claude/
-    └── settings.local.json
+├── lineage_jpg/            # 遊戲場景圖素材
+│
+└── docs/                   # 設計文件（中文）
+    ├── 01_game_vision.md
+    ├── 02_login_design.md
+    ├── 03_scene_layout.md
+    ├── 04_topup_system.md
+    ├── 05_inventory_design.md
+    ├── 06_refine_system.md   ← 精煉系統規格（最重要）
+    ├── 07_product_value.md
+    └── 08_ui_graphics.md
 ```
 
 ---
 
-# refine_rates.json
+## 頁面流程
 
-所有精煉機率皆由 JSON 控制。
-
-範例：
-
-```json
-{
-  "scroll_bonus": {
-    "normal": 0,
-    "blessed": 20,
-    "cursed": 40
-  },
-
-  "weapon": {
-    "safe_level": 6,
-    "rates": [
-      {
-        "from": 6,
-        "to": 7,
-        "base": 77
-      }
-    ]
-  }
-}
+```
+index.html
+  └─→ login.html          輸入角色名稱登入
+        └─→ lineage.html  主遊戲（需登入，否則跳回 login）
+              ├─→ setting.html        歐林收購配置（驗證登入）
+              ├─→ cash_pay.html       天幣儲值（驗證登入）
+              ├─→ refine_table.html   機率查詢（新分頁，免驗證）
+              └─→ logout.html         登出片尾
 ```
 
-優點：
-
-* 無須修改程式碼
-* 可自由調整成功率
-* 可客製私服版本規則
+所有頁面在 `onMounted` 檢查 `localStorage` 的 `lineage_player.loggedIn`，未登入則強制跳回 `login.html`。
 
 ---
 
-# 遊戲資料儲存
+## 技術架構
 
-所有資料透過 localStorage 保存。
+| 項目 | 技術 |
+|------|------|
+| 前端框架 | Vue 3.4.21（CDN 載入，無構建步驟） |
+| API 風格 | Options-free Composition API（`setup()` 模式） |
+| 樣式 | 純 CSS3（Flexbox / Grid） |
+| 資料儲存 | `localStorage`（純前端，無後端） |
+| 機率設定 | `refine_rates.json`（執行期 fetch） |
+| 字體 | Noto Serif TC / Noto Sans Mono |
 
-## 玩家資訊
+**無任何構建工具**：所有 `.html` 檔案直接在瀏覽器執行，Vue 3 從 CDN 載入。新增邏輯請使用純瀏覽器相容的 JS，不可使用 TypeScript、JSX 或 ES module bundler。
+
+---
+
+## 資料層設計
+
+所有遊戲狀態存於 `localStorage`，key 說明如下：
+
+### `lineage_player`
 
 ```json
 {
   "name": "Tiger",
   "gold": 10000000,
   "server": "s1",
-  "loggedIn": true
+  "loggedIn": true,
+  "loginTime": 1718000000000
 }
 ```
 
----
+### `lineage_inventory`
 
-## 背包資料
+100 格背包，陣列索引即格子位置：
 
 ```json
 [
-  {
-    "name": "長劍",
-    "type": "weapon",
-    "enhance": 5
-  }
+  { "id": "w001", "name": "長劍", "type": "weapon", "enhance": 5 },
+  { "id": "s001", "name": "祝福卷軸", "type": "scroll_weapon", "scrollType": "blessed" },
+  null
 ]
 ```
 
----
+物品 `type` 可為：`weapon` / `armor` / `scroll_weapon` / `scroll_armor` / 消耗品
 
-## 價格設定
+### `lineage_config`
 
 ```json
 {
+  "maxEnhLevel": 20,
   "priceConfig": {
-    "weapon": {},
-    "armor": {}
+    "weapon": { "1": 1000, "5": 5000, "10": 50000 },
+    "armor":  { "1": 800,  "5": 4000 },
+    "twdRate": 100
   }
 }
 ```
 
 ---
 
-# UI 設計風格
+## 精煉系統
 
-主題：
+精煉核心邏輯詳見 [`docs/06_refine_system.md`](docs/06_refine_system.md)。
 
-```text
-天堂經典沙漠風格
+### 機率設定（`refine_rates.json`）
+
+```json
+{
+  "scroll_bonus": {
+    "normal":  0,
+    "blessed": 20,
+    "cursed":  40
+  },
+  "weapon": {
+    "safe_level": 6,
+    "rates": [
+      { "from": 0, "to": 1, "base": 100, "safe": true },
+      { "from": 6, "to": 7, "base": 77,  "safe": false }
+    ]
+  },
+  "armor": {
+    "safe_level": 4,
+    "rates": [ ... ]
+  }
+}
 ```
 
-色彩配置：
+- `base`：基礎成功率（0–100，支援 6 位小數）
+- `safe`：安定範圍內成功率固定 100%，不受卷軸加成影響
+- 卷軸 `scroll_bonus` 直接疊加到 `base`，並 clamp 至 100
+
+### 安定值
+
+| 類型 | 安定範圍 |
+|------|----------|
+| 武器 | +0 ~ +5（safe_level = 6） |
+| 防具 | +0 ~ +3（safe_level = 4） |
+
+### 強化費用
+
+```
+每次強化費用 = 500 × 2^(當前等級)  天幣
+```
+
+### 卷軸效果
+
+| 卷軸 | 成功 | 失敗 |
+|------|------|------|
+| 普通 | +1 | 裝備消失 |
+| 祝福 | 50% +1 / 50% +2 | 裝備消失 |
+| 詛咒 | -1（+40% 成功率加成） | 裝備消失 |
+
+---
+
+## 功能一覽
+
+### 背包系統
+
+- 100 格（5×20 格），支援依類型 / 名稱 / 強化等級排序
+- **鐵鎚模式**：點擊卷軸啟動 → 再點裝備格子即自動強化，適合批量操作
+- 右鍵快速操作：直接強化 / 直接出售
+
+### 歐林收購系統（`setting.html`）
+
+可設定各強化等級的牌價與玩家自訂售價，售價可高於牌價。
+
+### 天幣儲值（`cash_pay.html`）
+
+預設匯率 1 TWD = 100 Gold，最大單次儲值 100,000 元（= 1,000 萬 Gold）。
+
+### 精煉機率表（`refine_table.html`）
+
+顏色標示各階段機率：
+
+| 顏色 | 意義 |
+|------|------|
+| 綠色 | 100% |
+| 黃色 | ≥ 44% |
+| 橘色 | ≥ 11% |
+| 紅色 | ≤ 5% |
+
+---
+
+## UI 設計系統
+
+天堂沙漠風格主題，所有頁面共享同一組 CSS 變數：
 
 ```css
---gold: #c8a84b;
---gold2: #f0d060;
-
---dark: #0a0704;
-
---panel: #150e06;
---panel2: #1c1208;
-
---border: #6a4420;
-
---text: #e8d5a0;
-
---red: #cc2222;
---green: #22aa44;
+--gold:   #c8a84b   /* 主要金色 */
+--gold2:  #f0d060   /* 亮金 / 標題 */
+--panel:  #150e06   /* 深色面板背景 */
+--border: #6a4420   /* 面板邊框 */
+--text:   #e8d5a0   /* 內文 */
+--red:    #cc2222
+--green:  #22aa44
 ```
 
----
-
-# 動畫效果
-
-## 強化成功
-
-```text
-✨ 黃金光環
-✨ 浮動文字
-✨ 粒子效果
-```
+強化結果動畫：成功（黃金光環 + 粒子）、失敗（紅色飄散）、爆炸（旋轉縮放爆炸）。
 
 ---
 
-## 強化失敗
+## 未來規劃
 
-```text
-💨 紅色飄散效果
-```
-
----
-
-## 裝備爆炸
-
-```text
-💥 旋轉
-💥 縮放
-💥 爆炸動畫
-```
+- [ ] 裝備圖鑑系統
+- [ ] 稀有武器掉落
+- [ ] 強化統計分析
+- [ ] 雲端存檔
+- [ ] 世界排行榜
+- [ ] 公會系統 / 拍賣交易所
 
 ---
 
-# 執行方式
+## License
 
-## 直接開啟
-
-```text
-login.html
-```
-
-推薦：
-
-* Chrome
-* Edge
-* Firefox
-
----
-
-# 頁面說明
-
-| 頁面                  | 功能   |
-| ------------------- | ---- |
-| login.html          | 玩家登入 |
-| lineage-refine.html | 主遊戲  |
-| refine_table.html   | 機率查詢 |
-| setting.html        | 收購配置 |
-| cash_pay.html       | 天幣儲值 |
-
-index.html          入口 → 自動轉址 login.html
-login.html          登入 → lineage.html
-lineage.html        主遊戲（需登入）
-  ├─ setting.html     配置（驗證玩家ID）
-  ├─ cash_pay.html    儲值（驗證玩家ID）
-  └─ refine_table.html 機率表（新分頁，免驗證）
-refine_rates.json   後台機率設定（開發人員可改）
-
----
-
-# 遊戲流程
-
-```text
-登入
- ↓
-進入遊戲
- ↓
-購買卷軸
- ↓
-強化裝備
- ↓
-出售裝備
- ↓
-獲得天幣
- ↓
-挑戰更高精煉
-```
-
----
-
-# 核心特色
-
-### 資料驅動
-
-所有精煉規則皆可透過 JSON 調整。
-
-### 純前端架構
-
-無需資料庫、API 或伺服器。
-
-### 天堂經典玩法
-
-重現玩家最熟悉的衝裝刺激感。
-
-### 完整經濟系統
-
-包含：
-
-* 金幣
-* 卷軸
-* 收購
-* 售價
-* 儲值
-
-### Vue 3 Reactive UI
-
-即時更新：
-
-* 背包
-* 金額
-* 強化結果
-* 訊息紀錄
-
----
-
-# 未來規劃
-
-* [ ] 裝備圖鑑系統
-* [ ] 稀有武器掉落
-* [ ] 世界排行榜
-* [ ] 強化統計分析
-* [ ] 雲端存檔
-* [ ] 多伺服器資料同步
-* [ ] 公會系統
-* [ ] 拍賣交易所
-
----
-
-# License
-
-MIT License
-
-僅供學習、研究及遊戲系統設計展示用途。
+MIT — 僅供學習、研究及遊戲系統設計展示用途。
