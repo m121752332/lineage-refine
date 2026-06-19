@@ -80,3 +80,17 @@ Design reference documents are in [`docs/`](docs/) (Chinese). Key files:
 - No transpilation or bundling — all code must be valid vanilla JS/HTML/CSS that runs directly in the browser.
 - Vue 3 is loaded from CDN (`vue.global.prod.min.js`). Use the Options-free Composition API (`setup()` pattern) consistent with existing pages.
 - `refine_rates.json` must be fetched over HTTP; opening HTML files directly (`file://`) will cause CORS errors on that fetch.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues on m121752332/lineage-refine; external PRs are also a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Uses default label vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout — one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
