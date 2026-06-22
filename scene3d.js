@@ -166,6 +166,7 @@ export function createScene(canvas, opts = {}) {
     }
   });
 
+  engine.resize(); applyOrtho();   // size to the (now laid-out) canvas
   engine.runRenderLoop(() => scene.render());
   window.addEventListener('resize', () => { engine.resize(); applyOrtho(); });
 
