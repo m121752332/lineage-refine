@@ -138,6 +138,21 @@ html,body{width:100%;min-height:100%;background:#080503;font-family:'Noto Serif 
       </div>
     </div>
 
+    <!-- 場景視角模式 -->
+    <div class="section">
+      <div class="section-hd">🎥 場景視角模式</div>
+      <div class="section-body">
+        <div class="slider-row">
+          <label style="cursor:pointer"><input type="radio" value="fixed" v-model="cameraMode"/> 固定 45°（經典等角）</label>
+          <label style="cursor:pointer;margin-left:18px"><input type="radio" value="rotatable" v-model="cameraMode"/> 可旋轉（水平環顧＋滾輪縮放）</label>
+        </div>
+        <div class="section-note">
+          目前設定：<span style="color:var(--gold2)">{{ cameraMode === 'rotatable' ? '可旋轉視角' : '固定 45° 視角' }}</span>。
+          可旋轉模式下俯角固定，永遠維持 2.5D 等角。
+        </div>
+      </div>
+    </div>
+
     <!-- 武器牌價 + 售價 -->
     <div class="section">
       <div class="section-hd">⚔ 武器收購價格配置（+1 ~ +{{ maxEnhLevel }}）</div>
@@ -221,6 +236,7 @@ createApp({
     const charName = ref('');
     const maxEnhLevel = ref(12);
     const twdRate = ref(100);
+    const cameraMode = ref('fixed');   // 'fixed' | 'rotatable' — 場景視角模式
     const weapon = reactive({ list: [...DEF_WEAPON], sell: Array(20).fill(0) });
     const armor  = reactive({ list: [...DEF_ARMOR],  sell: Array(20).fill(0) });
     const toast = reactive({ show: false, text: '', color: 'var(--border)' });
@@ -234,6 +250,7 @@ createApp({
       const cfg = JSON.parse(localStorage.getItem('lineage_config') || 'null');
       if (cfg) {
         if (cfg.maxEnhLevel) maxEnhLevel.value = cfg.maxEnhLevel;
+        if (cfg.cameraMode === 'rotatable' || cfg.cameraMode === 'fixed') cameraMode.value = cfg.cameraMode;
         if (cfg.priceConfig) {
           const pc = cfg.priceConfig;
           if (pc.weapon?.list?.length) weapon.list = [...pc.weapon.list];
@@ -256,6 +273,7 @@ createApp({
     function doSave() {
       localStorage.setItem('lineage_config', JSON.stringify({
         maxEnhLevel: maxEnhLevel.value,
+        cameraMode: cameraMode.value,
         priceConfig: {
           weapon: { list: [...weapon.list], sell: [...weapon.sell] },
           armor:  { list: [...armor.list],  sell: [...armor.sell]  },
@@ -269,6 +287,7 @@ createApp({
     function doReset() {
       maxEnhLevel.value = 12;
       twdRate.value = 100;
+      cameraMode.value = 'fixed';
       weapon.list = [...DEF_WEAPON];
       weapon.sell = Array(20).fill(0);
       armor.list  = [...DEF_ARMOR];
@@ -276,7 +295,7 @@ createApp({
       showToast('↺ 已恢復預設值', 'var(--border)');
     }
 
-    return { charName, maxEnhLevel, twdRate, weapon, armor, toast, doSave, doReset };
+    return { charName, maxEnhLevel, twdRate, cameraMode, weapon, armor, toast, doSave, doReset };
   }
 }).mount('#app');
 </script>
