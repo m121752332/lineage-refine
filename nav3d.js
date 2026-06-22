@@ -133,3 +133,21 @@ export function findPath(sx, sy, tx, ty) {
   }
   return null;
 }
+
+// ── Collision-step check + logic<->Babylon coordinate mapping ──
+// Same half-box rule the old 2D loop used: keep the player body on walkable ground.
+export function canStep(x, y, nx, ny, px = 16) {
+  const inX = walkable(nx, y - px) || walkable(nx, y + px);
+  const inY = walkable(x - px, ny) || walkable(x + px, ny);
+  return inX || inY;
+}
+// Babylon world units per logic pixel. Map is centered at the origin; logic-south = -Z.
+export const WORLD_SCALE = 0.04;
+export function logicToWorld(x, y) {
+  const { widthPx, heightPx } = mapSize();
+  return { X: (x - widthPx / 2) * WORLD_SCALE, Z: (heightPx / 2 - y) * WORLD_SCALE };
+}
+export function worldToLogic(X, Z) {
+  const { widthPx, heightPx } = mapSize();
+  return { x: X / WORLD_SCALE + widthPx / 2, y: heightPx / 2 - Z / WORLD_SCALE };
+}

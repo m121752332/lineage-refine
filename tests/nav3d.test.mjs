@@ -67,3 +67,18 @@ test('smoothed path has no redundant collinear midpoints', () => {
   assert.ok(path, 'open corridor is reachable');
   assert.ok(path.length <= 4, `expected a short smoothed path, got ${path.length}`);
 });
+
+import { canStep, logicToWorld, worldToLogic, WORLD_SCALE } from '../nav3d.js';
+
+test('canStep allows movement on open floor and blocks into a wall', () => {
+  const s = findChar('S');
+  assert.equal(canStep(s.x, s.y, s.x + 4, s.y), true);
+  assert.equal(canStep(s.x, s.y, 0, 0), false); // toward border wall corner
+});
+
+test('logicToWorld / worldToLogic round-trip', () => {
+  const { X, Z } = logicToWorld(300, 420);
+  const { x, y } = worldToLogic(X, Z);
+  assert.ok(Math.abs(x - 300) < 1e-6 && Math.abs(y - 420) < 1e-6);
+  assert.ok(WORLD_SCALE > 0);
+});
