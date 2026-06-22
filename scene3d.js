@@ -44,6 +44,20 @@ function buildLevel(scene) {
   if (walls.length) { const merged = BABYLON.Mesh.MergeMeshes(walls, true, true, undefined, false, false); if (merged) merged.isPickable = false; }
 }
 
+function createCharacter(scene, color) {
+  // SEAM: future character-selection replaces this primitive build with a GLB load + skeleton.
+  const unit = TILE_PX * WORLD_SCALE;
+  const root = new BABYLON.TransformNode('charRoot', scene);
+  const mat = new BABYLON.StandardMaterial('charMat', scene); mat.diffuseColor = color; mat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+  const body = BABYLON.MeshBuilder.CreateCapsule('body', { radius: unit * 0.28, height: unit * 1.0 }, scene);
+  body.position.y = unit * 0.7; body.material = mat; body.parent = root; body.isPickable = false;
+  const head = BABYLON.MeshBuilder.CreateSphere('head', { diameter: unit * 0.42 }, scene);
+  head.position.y = unit * 1.25; head.material = mat; head.parent = root; head.isPickable = false;
+  const mkLeg = (sx) => { const l = BABYLON.MeshBuilder.CreateBox('leg', { width: unit*0.18, depth: unit*0.22, height: unit*0.5 }, scene); l.position.set(sx, unit*0.25, 0); l.material = mat; l.parent = root; l.isPickable = false; return l; };
+  const legL = mkLeg(-unit * 0.16), legR = mkLeg(unit * 0.16);
+  return { root, legL, legR, body, _t: 0 };
+}
+
 function buildLights(scene) {
   const amb = new BABYLON.HemisphericLight('amb', new BABYLON.Vector3(0, 1, 0), scene);
   amb.intensity = 0.18;                                  // dim base = dungeon dark
@@ -124,6 +138,15 @@ export function createScene(canvas, opts = {}) {
   buildLights(scene);
   buildFireProps(scene);
 
+  const player = createCharacter(scene, new BABYLON.Color3(0.62, 0.66, 0.74)); // knight = steel/silver
+  let _playerMoving = false, _playerFacing = 0;
+  const _bodyBaseY = TILE_PX * WORLD_SCALE * 0.7;
+  scene.onBeforeRenderObservable.add(() => {
+    if (_playerMoving) { player._t += 0.25; const s = Math.sin(player._t) * 0.5; player.legL.rotation.x = s; player.legR.rotation.x = -s; player.body.position.y = _bodyBaseY + Math.abs(Math.sin(player._t)) * 0.02; }
+    else { player.legL.rotation.x = 0; player.legR.rotation.x = 0; }
+    player.root.rotation.y = _playerFacing;
+  });
+
   scene.onPointerObservable.add((p) => {
     if (p.type !== BABYLON.PointerEventTypes.POINTERPICK) return;
     const hit = scene.pick(scene.pointerX, scene.pointerY, (m) => m === ground);
@@ -138,7 +161,11 @@ export function createScene(canvas, opts = {}) {
 
   return {
     setCameraMode: (m) => { opts.cameraMode = m; setCameraMode(m); },
-    setPlayer: () => {},
+    setPlayer: (x, y, moving) => {
+      const { X, Z } = logicToWorld(x, y);
+      if (moving) { const dx = X - player.root.position.x, dz = Z - player.root.position.z; if (dx || dz) _playerFacing = Math.atan2(dx, dz); }
+      player.root.position.set(X, 0, Z); _playerMoving = !!moving;
+    },
     setOlin: () => {},
     dispose: () => engine.dispose(),
     _internals: { scene, engine, camera, BABYLON },
