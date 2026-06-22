@@ -45,3 +45,25 @@ test('start cell resolves to a navigable cell', () => {
   assert.ok(near && cellNavigable(near.col, near.row));
   assert.ok(NAV_CELL > 0);
 });
+
+import { findPath } from '../nav3d.js';
+
+test('player start can reach Olin (map connectivity guard)', () => {
+  const s = findChar('S'), o = findChar('O');
+  // Target a walkable tile just below Olin's footprint (the alcove opening).
+  const path = findPath(s.x, s.y, o.x, o.y + 40);
+  assert.ok(Array.isArray(path) && path.length >= 2, 'a path exists from start to Olin');
+});
+
+test('unreachable target inside solid wall returns null', () => {
+  const s = findChar('S');
+  const path = findPath(s.x, s.y, 4, 4); // (col0,row0) border wall
+  assert.equal(path, null);
+});
+
+test('smoothed path has no redundant collinear midpoints', () => {
+  // Row 2 (y≈100) is fully open floor — a straight clear corridor.
+  const path = findPath(60, 100, 260, 100);
+  assert.ok(path, 'open corridor is reachable');
+  assert.ok(path.length <= 4, `expected a short smoothed path, got ${path.length}`);
+});

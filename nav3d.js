@@ -78,3 +78,58 @@ export function nearestNavCell(col, row) {
   }
   return null;
 }
+
+// ── A* pathfinding + line-of-sight smoothing (ported from the proven 2D nav) ──
+function navLineClear(a, b) {
+  const dist = Math.hypot(b.x - a.x, b.y - a.y), steps = Math.ceil(dist / (NAV_CELL / 2));
+  for (let i = 0; i <= steps; i++) {
+    const t = steps ? i / steps : 0, x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t;
+    if (!navCellOK(x, y)) return false;
+  }
+  return true;
+}
+function smoothPath(path) {
+  if (path.length <= 2) return path;
+  const out = [path[0]]; let i = 0;
+  while (i < path.length - 1) {
+    let j = path.length - 1;
+    while (j > i + 1 && !navLineClear(path[i], path[j])) j--;
+    out.push(path[j]); i = j;
+  }
+  return out;
+}
+export function findPath(sx, sy, tx, ty) {
+  const g = buildNavGrid();
+  const s0 = worldToCell(sx, sy), s = nearestNavCell(s0.col, s0.row);
+  const tc = worldToCell(tx, ty);
+  if (!s || !cellNavigable(tc.col, tc.row)) return null;
+  const idx = (c, r) => r * g.cols + c;
+  const goalK = idx(tc.col, tc.row);
+  const came = new Map(), gScore = new Map([[idx(s.col, s.row), 0]]), closed = new Set();
+  const heur = (c, r) => Math.hypot(c - tc.col, r - tc.row);
+  const open = [{ c: s.col, r: s.row, f: heur(s.col, s.row) }];
+  const dirs = [[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,1.414],[1,-1,1.414],[-1,1,1.414],[-1,-1,1.414]];
+  while (open.length) {
+    let bi = 0; for (let i = 1; i < open.length; i++) if (open[i].f < open[bi].f) bi = i;
+    const cur = open.splice(bi, 1)[0], ck = idx(cur.c, cur.r);
+    if (ck === goalK) {
+      const cells = []; let k = ck;
+      while (k !== undefined) { cells.push({ x: cellCenter(k % g.cols, Math.floor(k / g.cols)).x, y: cellCenter(k % g.cols, Math.floor(k / g.cols)).y }); k = came.get(k); }
+      return smoothPath(cells.reverse());
+    }
+    if (closed.has(ck)) continue;
+    closed.add(ck);
+    for (const [dc, dr, cost] of dirs) {
+      const nc = cur.c + dc, nr = cur.r + dr;
+      if (!cellNavigable(nc, nr)) continue;
+      if (dc !== 0 && dr !== 0 && (!cellNavigable(cur.c + dc, cur.r) || !cellNavigable(cur.c, cur.r + dr))) continue;
+      const nk = idx(nc, nr); if (closed.has(nk)) continue;
+      const tentative = gScore.get(ck) + cost;
+      if (tentative < (gScore.has(nk) ? gScore.get(nk) : Infinity)) {
+        came.set(nk, ck); gScore.set(nk, tentative);
+        open.push({ c: nc, r: nr, f: tentative + heur(nc, nr) });
+      }
+    }
+  }
+  return null;
+}
