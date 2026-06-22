@@ -1,8 +1,13 @@
 // scene3d.js — Babylon presentation layer (reads logic state, renders 2.5D iso scene)
-// Babylon is loaded as a UMD global via <script src="https://cdn.babylonjs.com/babylon.js">
-// in lineage.html (the full @babylonjs/core ESM bundle is unreliable/slow on CDNs).
-const BABYLON = window.BABYLON;
-import { mapSize, cellAt, logicToWorld, worldToLogic, WORLD_SCALE, TILE_PX } from './nav3d.js';
+// Classic <script> (file:// friendly, no ES modules). Depends on globals:
+//   - window.BABYLON (UMD build, <script src="https://cdn.babylonjs.com/babylon.js">)
+//   - globalThis.Nav3D (nav3d.js, loaded before this file)
+// These are read lazily when createScene() runs (in the app's onMounted), so the
+// script load order between Babylon / nav3d / this file does not matter.
+// Wrapped in an IIFE so top-level names stay private (shares global scope with
+// nav3d.js as a classic <script>); only globalThis.Scene3D is exposed.
+(function () {
+let BABYLON, mapSize, cellAt, logicToWorld, worldToLogic, WORLD_SCALE, TILE_PX;
 
 function stoneTexture(scene, base, name) {
   const t = new BABYLON.DynamicTexture(name, { width: 128, height: 128 }, scene, false);
@@ -91,7 +96,11 @@ function buildFireProps(scene) {
 const ISO_BETA = Math.PI * 60 / 180;   // 60° from +Y  => 30° elevation (classic iso feel)
 const ISO_ALPHA = -Math.PI / 4;        // upper-left -> lower-right 45°
 
-export function createScene(canvas, opts = {}) {
+function createScene(canvas, opts = {}) {
+  // Bind globals now (all scripts + Babylon have loaded by the time this runs).
+  BABYLON = window.BABYLON;
+  ({ mapSize, cellAt, logicToWorld, worldToLogic, WORLD_SCALE, TILE_PX } = globalThis.Nav3D);
+
   const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true });
   const scene = new BABYLON.Scene(engine);
   scene.clearColor = new BABYLON.Color4(0.03, 0.02, 0.02, 1);
@@ -186,3 +195,6 @@ export function createScene(canvas, opts = {}) {
     _internals: { scene, engine, camera, BABYLON },
   };
 }
+
+globalThis.Scene3D = { createScene };
+})();

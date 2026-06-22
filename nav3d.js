@@ -1,10 +1,13 @@
 // nav3d.js — pure navigation logic, no Babylon, no DOM (Node + browser importable)
-export const TILE_PX = 40;
+// Wrapped in an IIFE so its top-level names stay private (it shares the global
+// scope with scene3d.js as a classic <script>); only globalThis.Nav3D is exposed.
+(function () {
+const TILE_PX = 40;
 
 // Legend: # wall  . floor  S start  O olin  C campfire  t torch  P pillar
 // Outer ring is solid wall. Interior floor is contiguous (blocks are detached),
 // guaranteeing connectivity; Olin sits in a 3-wall alcove with a downward opening.
-export const TILEMAP = [
+const TILEMAP = [
   '########################',
   '#S....t..........t.....#',
   '#......................#',
@@ -25,21 +28,21 @@ export const TILEMAP = [
   '########################',
 ];
 
-export function mapSize() {
+function mapSize() {
   const rows = TILEMAP.length, cols = TILEMAP[0].length;
   return { cols, rows, widthPx: cols * TILE_PX, heightPx: rows * TILE_PX };
 }
-export function cellAt(col, row) {
+function cellAt(col, row) {
   const { cols, rows } = mapSize();
   if (col < 0 || row < 0 || col >= cols || row >= rows) return '#';
   return TILEMAP[row][col];
 }
-export function isBlockedChar(ch) { return ch === '#' || ch === 'O' || ch === 'C' || ch === 't' || ch === 'P'; }
-export function walkable(x, y) {
+function isBlockedChar(ch) { return ch === '#' || ch === 'O' || ch === 'C' || ch === 't' || ch === 'P'; }
+function walkable(x, y) {
   const col = Math.floor(x / TILE_PX), row = Math.floor(y / TILE_PX);
   return !isBlockedChar(cellAt(col, row));
 }
-export function findChar(ch) {
+function findChar(ch) {
   const { rows, cols } = mapSize();
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++)
     if (TILEMAP[r][c] === ch) return { x: c * TILE_PX + TILE_PX / 2, y: r * TILE_PX + TILE_PX / 2 };
@@ -47,13 +50,13 @@ export function findChar(ch) {
 }
 
 // ── Navigation grid (finer than tiles; half-body margin keeps paths off walls) ──
-export const NAV_CELL = 16, NAV_R = 14;
+const NAV_CELL = 16, NAV_R = 14;
 let _grid = null;
 function navCellOK(cx, cy) {
   return walkable(cx, cy) && walkable(cx - NAV_R, cy) && walkable(cx + NAV_R, cy)
                           && walkable(cx, cy - NAV_R) && walkable(cx, cy + NAV_R);
 }
-export function buildNavGrid() {
+function buildNavGrid() {
   if (_grid) return _grid;
   const { widthPx, heightPx } = mapSize();
   const minX = 0, minY = 0;
@@ -66,10 +69,10 @@ export function buildNavGrid() {
   _grid = { cols, rows, minX, minY, cell };
   return _grid;
 }
-export function worldToCell(x, y) { const g = buildNavGrid(); return { col: Math.floor((x - g.minX) / NAV_CELL), row: Math.floor((y - g.minY) / NAV_CELL) }; }
-export function cellCenter(col, row) { const g = buildNavGrid(); return { x: g.minX + col * NAV_CELL + NAV_CELL / 2, y: g.minY + row * NAV_CELL + NAV_CELL / 2 }; }
-export function cellNavigable(col, row) { const g = buildNavGrid(); if (col < 0 || row < 0 || col >= g.cols || row >= g.rows) return false; return g.cell[row * g.cols + col] === 1; }
-export function nearestNavCell(col, row) {
+function worldToCell(x, y) { const g = buildNavGrid(); return { col: Math.floor((x - g.minX) / NAV_CELL), row: Math.floor((y - g.minY) / NAV_CELL) }; }
+function cellCenter(col, row) { const g = buildNavGrid(); return { x: g.minX + col * NAV_CELL + NAV_CELL / 2, y: g.minY + row * NAV_CELL + NAV_CELL / 2 }; }
+function cellNavigable(col, row) { const g = buildNavGrid(); if (col < 0 || row < 0 || col >= g.cols || row >= g.rows) return false; return g.cell[row * g.cols + col] === 1; }
+function nearestNavCell(col, row) {
   const g = buildNavGrid(), maxRad = Math.max(g.cols, g.rows);
   if (cellNavigable(col, row)) return { col, row };
   for (let rad = 1; rad < maxRad; rad++) for (let dr = -rad; dr <= rad; dr++) for (let dc = -rad; dc <= rad; dc++) {
@@ -98,7 +101,7 @@ function smoothPath(path) {
   }
   return out;
 }
-export function findPath(sx, sy, tx, ty) {
+function findPath(sx, sy, tx, ty) {
   const g = buildNavGrid();
   const s0 = worldToCell(sx, sy), s = nearestNavCell(s0.col, s0.row);
   const tc = worldToCell(tx, ty);
@@ -136,18 +139,27 @@ export function findPath(sx, sy, tx, ty) {
 
 // ── Collision-step check + logic<->Babylon coordinate mapping ──
 // Same half-box rule the old 2D loop used: keep the player body on walkable ground.
-export function canStep(x, y, nx, ny, px = 16) {
+function canStep(x, y, nx, ny, px = 16) {
   const inX = walkable(nx, y - px) || walkable(nx, y + px);
   const inY = walkable(x - px, ny) || walkable(x + px, ny);
   return inX || inY;
 }
 // Babylon world units per logic pixel. Map is centered at the origin; logic-south = -Z.
-export const WORLD_SCALE = 0.04;
-export function logicToWorld(x, y) {
+const WORLD_SCALE = 0.04;
+function logicToWorld(x, y) {
   const { widthPx, heightPx } = mapSize();
   return { X: (x - widthPx / 2) * WORLD_SCALE, Z: (heightPx / 2 - y) * WORLD_SCALE };
 }
-export function worldToLogic(X, Z) {
+function worldToLogic(X, Z) {
   const { widthPx, heightPx } = mapSize();
   return { x: X / WORLD_SCALE + widthPx / 2, y: heightPx / 2 - Z / WORLD_SCALE };
 }
+
+// Exposed as a global so this file works as a classic <script> (file:// friendly,
+// no ES modules) in the browser AND as an import-for-side-effect in Node tests.
+globalThis.Nav3D = {
+  TILE_PX, TILEMAP, mapSize, cellAt, isBlockedChar, walkable, findChar,
+  NAV_CELL, NAV_R, buildNavGrid, worldToCell, cellCenter, cellNavigable,
+  nearestNavCell, findPath, canStep, WORLD_SCALE, logicToWorld, worldToLogic,
+};
+})();

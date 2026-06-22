@@ -1143,9 +1143,15 @@ tr.sp-safe-row:hover td{background:rgba(20,60,20,0.3)!important;}
   </div>
 
 </div>
-<script type="module">
-import { findPath, canStep, walkable, findChar } from './nav3d.js';
-import { createScene } from './scene3d.js';
+<!-- 3D 場景相依（classic scripts，file:// 可用）：Babylon → nav3d → scene3d，需在主程式前載入 -->
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script src="nav3d.js"></script>
+<script src="scene3d.js"></script>
+<script>
+// nav3d.js / scene3d.js are loaded as classic scripts above and expose globals,
+// so this page works over file:// (ES modules don't load from file://).
+const { findPath, canStep, walkable, findChar } = globalThis.Nav3D;
+const { createScene } = globalThis.Scene3D;
 const {createApp,ref,reactive,computed,nextTick,onMounted,watch} = Vue;
 createApp({
   setup(){
@@ -1937,7 +1943,6 @@ createApp({
   }
 }).mount('#app');
 </script>
-<script src="https://cdn.babylonjs.com/babylon.js"></script>
 <audio id="bgm" src="static/bgm/lineage_game.mp3" loop preload="auto"></audio>
 <script>
 (function initBGM() {

@@ -1,6 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { TILE_PX, mapSize, cellAt, walkable, findChar, isBlockedChar } from '../nav3d.js';
+import '../nav3d.js'; // classic global script: populates globalThis.Nav3D
+const {
+  TILE_PX, mapSize, cellAt, walkable, findChar, isBlockedChar,
+  NAV_CELL, worldToCell, cellCenter, cellNavigable, nearestNavCell,
+  findPath, canStep, logicToWorld, worldToLogic, WORLD_SCALE,
+} = globalThis.Nav3D;
 
 test('map is rectangular and bordered by walls', () => {
   const { cols, rows } = mapSize();
@@ -28,8 +33,6 @@ test('blocked chars are not walkable', () => {
   for (const ch of ['.', 'S']) assert.equal(isBlockedChar(ch), false);
 });
 
-import { NAV_CELL, worldToCell, cellCenter, cellNavigable, nearestNavCell } from '../nav3d.js';
-
 test('cell <-> world round-trips to same cell', () => {
   const s = findChar('S');
   const c = worldToCell(s.x, s.y);
@@ -45,8 +48,6 @@ test('start cell resolves to a navigable cell', () => {
   assert.ok(near && cellNavigable(near.col, near.row));
   assert.ok(NAV_CELL > 0);
 });
-
-import { findPath } from '../nav3d.js';
 
 test('player start can reach Olin (map connectivity guard)', () => {
   const s = findChar('S'), o = findChar('O');
@@ -67,8 +68,6 @@ test('smoothed path has no redundant collinear midpoints', () => {
   assert.ok(path, 'open corridor is reachable');
   assert.ok(path.length <= 4, `expected a short smoothed path, got ${path.length}`);
 });
-
-import { canStep, logicToWorld, worldToLogic, WORLD_SCALE } from '../nav3d.js';
 
 test('canStep allows movement on open floor and blocks into a wall', () => {
   const s = findChar('S');
