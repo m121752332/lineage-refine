@@ -44,6 +44,36 @@ function buildLevel(scene) {
   if (walls.length) { const merged = BABYLON.Mesh.MergeMeshes(walls, true, true, undefined, false, false); if (merged) merged.isPickable = false; }
 }
 
+function buildLights(scene) {
+  const amb = new BABYLON.HemisphericLight('amb', new BABYLON.Vector3(0, 1, 0), scene);
+  amb.intensity = 0.18;                                  // dim base = dungeon dark
+  amb.diffuse = new BABYLON.Color3(0.5, 0.45, 0.4);
+  amb.groundColor = new BABYLON.Color3(0.05, 0.04, 0.03);
+}
+function addTorchLight(scene, X, Z, h) {
+  const pl = new BABYLON.PointLight('torch', new BABYLON.Vector3(X, h, Z), scene);
+  pl.diffuse = new BABYLON.Color3(1.0, 0.6, 0.25);       // warm orange
+  pl.intensity = 0.9; pl.range = TILE_PX * WORLD_SCALE * 6;
+  let t = Math.random() * 10;
+  scene.onBeforeRenderObservable.add(() => { t += 0.08; pl.intensity = 0.8 + Math.sin(t) * 0.12; }); // flicker
+  return pl;
+}
+function buildFireProps(scene) {
+  const { cols, rows } = mapSize();
+  const unit = TILE_PX * WORLD_SCALE;
+  const flameMat = new BABYLON.StandardMaterial('flameMat', scene);
+  flameMat.emissiveColor = new BABYLON.Color3(1, 0.5, 0.1); flameMat.disableLighting = true;
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const ch = cellAt(c, r); if (ch !== 't' && ch !== 'C') continue;
+    const { X, Z } = logicToWorld(c * TILE_PX + TILE_PX / 2, r * TILE_PX + TILE_PX / 2);
+    const isFire = ch === 'C';
+    const flame = BABYLON.MeshBuilder.CreateCylinder('flame', { diameterTop: 0, diameterBottom: isFire ? unit * 0.7 : unit * 0.25, height: isFire ? unit * 1.1 : unit * 0.7 }, scene);
+    flame.position.set(X, (isFire ? unit * 0.55 : unit * 0.9), Z); flame.material = flameMat; flame.isPickable = false;
+    if (!isFire) { const pole = BABYLON.MeshBuilder.CreateCylinder('pole', { diameter: unit * 0.12, height: unit * 1.2 }, scene); pole.position.set(X, unit * 0.6, Z); pole.isPickable = false; }
+    addTorchLight(scene, X, isFire ? unit * 0.9 : unit * 1.3, Z);
+  }
+}
+
 const ISO_BETA = Math.PI * 60 / 180;   // 60° from +Y  => 30° elevation (classic iso feel)
 const ISO_ALPHA = -Math.PI / 4;        // upper-left -> lower-right 45°
 
@@ -91,6 +121,8 @@ export function createScene(canvas, opts = {}) {
   ground.material = gmat;
 
   buildLevel(scene);
+  buildLights(scene);
+  buildFireProps(scene);
 
   scene.onPointerObservable.add((p) => {
     if (p.type !== BABYLON.PointerEventTypes.POINTERPICK) return;
