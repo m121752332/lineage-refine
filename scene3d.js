@@ -2,7 +2,47 @@
 // Babylon is loaded as a UMD global via <script src="https://cdn.babylonjs.com/babylon.js">
 // in lineage.html (the full @babylonjs/core ESM bundle is unreliable/slow on CDNs).
 const BABYLON = window.BABYLON;
-import { mapSize, logicToWorld, worldToLogic, WORLD_SCALE, TILE_PX } from './nav3d.js';
+import { mapSize, cellAt, logicToWorld, worldToLogic, WORLD_SCALE, TILE_PX } from './nav3d.js';
+
+function stoneTexture(scene, base, name) {
+  const t = new BABYLON.DynamicTexture(name, { width: 128, height: 128 }, scene, false);
+  const ctx = t.getContext();
+  ctx.fillStyle = base; ctx.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 220; i++) { // speckle/crack noise -> gritty stone
+    const x = Math.random() * 128, y = Math.random() * 128, a = Math.random() * 0.18;
+    ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.fillRect(x, y, 2, 2);
+  }
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1;
+  for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.moveTo(Math.random()*128, Math.random()*128); ctx.lineTo(Math.random()*128, Math.random()*128); ctx.stroke(); }
+  t.update();
+  return t;
+}
+
+function buildLevel(scene) {
+  const { cols, rows } = mapSize();
+  const unit = TILE_PX * WORLD_SCALE;          // one tile in world units
+  const wallH = unit * 1.6;
+  const wallMat = new BABYLON.StandardMaterial('wallMat', scene);
+  wallMat.diffuseTexture = stoneTexture(scene, '#3a2f24', 'wallTex');
+  wallMat.specularColor = new BABYLON.Color3(0, 0, 0);
+  const pillarMat = new BABYLON.StandardMaterial('pillarMat', scene);
+  pillarMat.diffuseTexture = stoneTexture(scene, '#2c241b', 'pillarTex');
+  pillarMat.specularColor = new BABYLON.Color3(0, 0, 0);
+
+  const walls = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const ch = cellAt(c, r);
+    const isWall = ch === '#', isPillar = ch === 'P';
+    if (!isWall && !isPillar) continue;
+    const { X, Z } = logicToWorld(c * TILE_PX + TILE_PX / 2, r * TILE_PX + TILE_PX / 2);
+    const w = isPillar ? unit * 0.55 : unit;
+    const box = BABYLON.MeshBuilder.CreateBox('w', { width: w, depth: w, height: wallH }, scene);
+    box.position.set(X, wallH / 2, Z);
+    box.material = isPillar ? pillarMat : wallMat;
+    if (isWall) walls.push(box); else box.isPickable = false;
+  }
+  if (walls.length) { const merged = BABYLON.Mesh.MergeMeshes(walls, true, true, undefined, false, false); if (merged) merged.isPickable = false; }
+}
 
 const ISO_BETA = Math.PI * 60 / 180;   // 60° from +Y  => 30° elevation (classic iso feel)
 const ISO_ALPHA = -Math.PI / 4;        // upper-left -> lower-right 45°
@@ -49,6 +89,8 @@ export function createScene(canvas, opts = {}) {
   gmat.diffuseColor = new BABYLON.Color3(0.18, 0.14, 0.08);
   gmat.specularColor = new BABYLON.Color3(0, 0, 0);
   ground.material = gmat;
+
+  buildLevel(scene);
 
   scene.onPointerObservable.add((p) => {
     if (p.type !== BABYLON.PointerEventTypes.POINTERPICK) return;
