@@ -147,6 +147,16 @@ export function createScene(canvas, opts = {}) {
     player.root.rotation.y = _playerFacing;
   });
 
+  const olin = createCharacter(scene, new BABYLON.Color3(0.16, 0.14, 0.12)); // dark robe
+  olin.legL.setEnabled(false); olin.legR.setEnabled(false); // static NPC: no legs/animation
+  const plate = new BABYLON.DynamicTexture('plate', { width: 256, height: 64 }, scene, false);
+  plate.hasAlpha = true;
+  plate.drawText('歐林【雜貨商】', null, 44, 'bold 28px sans-serif', '#f0d060', 'transparent', true);
+  const plateMat = new BABYLON.StandardMaterial('plateMat', scene);
+  plateMat.diffuseTexture = plate; plateMat.emissiveColor = new BABYLON.Color3(1, 1, 1); plateMat.opacityTexture = plate; plateMat.disableLighting = true; plateMat.backFaceCulling = false;
+  const plateMesh = BABYLON.MeshBuilder.CreatePlane('plateMesh', { width: TILE_PX*WORLD_SCALE*2.6, height: TILE_PX*WORLD_SCALE*0.65 }, scene);
+  plateMesh.material = plateMat; plateMesh.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL; plateMesh.isPickable = false;
+
   scene.onPointerObservable.add((p) => {
     if (p.type !== BABYLON.PointerEventTypes.POINTERPICK) return;
     const hit = scene.pick(scene.pointerX, scene.pointerY, (m) => m === ground);
@@ -166,7 +176,11 @@ export function createScene(canvas, opts = {}) {
       if (moving) { const dx = X - player.root.position.x, dz = Z - player.root.position.z; if (dx || dz) _playerFacing = Math.atan2(dx, dz); }
       player.root.position.set(X, 0, Z); _playerMoving = !!moving;
     },
-    setOlin: () => {},
+    setOlin: (x, y) => {
+      const { X, Z } = logicToWorld(x, y);
+      olin.root.position.set(X, 0, Z);
+      plateMesh.position.set(X, TILE_PX * WORLD_SCALE * 1.9, Z);
+    },
     dispose: () => engine.dispose(),
     _internals: { scene, engine, camera, BABYLON },
   };
