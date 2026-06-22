@@ -27,3 +27,21 @@ test('blocked chars are not walkable', () => {
   for (const ch of ['#', 'O', 'C', 't', 'P']) assert.equal(isBlockedChar(ch), true);
   for (const ch of ['.', 'S']) assert.equal(isBlockedChar(ch), false);
 });
+
+import { NAV_CELL, worldToCell, cellCenter, cellNavigable, nearestNavCell } from '../nav3d.js';
+
+test('cell <-> world round-trips to same cell', () => {
+  const s = findChar('S');
+  const c = worldToCell(s.x, s.y);
+  const back = cellCenter(c.col, c.row);
+  const c2 = worldToCell(back.x, back.y);
+  assert.deepEqual(c2, c);
+});
+
+test('start cell resolves to a navigable cell', () => {
+  const s = findChar('S');
+  const c = worldToCell(s.x, s.y);
+  const near = nearestNavCell(c.col, c.row);
+  assert.ok(near && cellNavigable(near.col, near.row));
+  assert.ok(NAV_CELL > 0);
+});
