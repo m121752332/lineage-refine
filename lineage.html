@@ -2529,6 +2529,18 @@ createApp({
   }
 }).mount('#app');
 </script>
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script type="module">
+  import { createScene } from './scene3d.js';
+  window.__scene3d = createScene; // exposed so the Vue app (Task 11) can call it
+  // TEMP (removed in Task 11): build Babylon on its OWN overlay canvas so it does not
+  // fight the legacy 2D engine for #gameCanvas. Lets us verify Tasks 5-9 in isolation.
+  const cv = document.createElement('canvas');
+  cv.id = 'tmpScene3d';
+  cv.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;z-index:50;';
+  document.body.appendChild(cv);
+  window.__sceneApi = createScene(cv, { cameraMode: 'fixed', onGroundClick: (x, y) => console.log('ground click', Math.round(x), Math.round(y)) });
+</script>
 <audio id="bgm" src="static/bgm/lineage_game.mp3" loop preload="auto"></audio>
 <script>
 (function initBGM() {
