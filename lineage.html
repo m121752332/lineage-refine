@@ -699,6 +699,18 @@ tr.sp-safe-row:hover td{background:rgba(20,60,20,0.3)!important;}
               </div>
             </div>
             <div class="sp-section">
+              <div class="sp-section-hd">💡 場景亮度</div>
+              <div class="sp-section-body">
+                <div class="sp-slider-row">
+                  <span>1</span>
+                  <input type="range" v-model.number="subSet.brightness" min="1" max="100" step="1" @input="applyBrightness"/>
+                  <span>100</span>
+                  <div class="sp-slider-val">{{subSet.brightness}}</div>
+                </div>
+                <div class="sp-note">控制整張地圖的環境亮度（不影響主角蠟燭）。拖動即時生效，記得按下方儲存。目前：<span style="color:var(--gold2)">{{subSet.brightness}}</span> / 100</div>
+              </div>
+            </div>
+            <div class="sp-section">
               <div class="sp-section-hd">⚔ 武器收購價格配置（+1 ~ +{{subSet.maxEnhLevel}}）</div>
               <div class="sp-section-body" style="overflow-x:auto;">
                 <div class="sp-price-grid">
@@ -1222,10 +1234,12 @@ createApp({
     const cpPresets=[100,300,500,1000,3000,5000,10000,30000,50000,100000];
     const cpCoins=computed(()=>Math.max(0,(cpTwd.value||0)*priceConfig.twdRate));
     const subSet=reactive({
-      maxEnhLevel:12,twdRate:100,
+      maxEnhLevel:12,twdRate:100,brightness:50,
       weapon:{list:[...DEFAULT_WEAPON_LIST],sell:Array(20).fill(0)},
       armor:{list:[...DEFAULT_ARMOR_LIST],sell:Array(20).fill(0)},
     });
+    let cameraBrightness=50;   // current scene brightness (1-100), persisted in lineage_config
+    function applyBrightness(){ cameraBrightness=subSet.brightness; if(sceneApi)sceneApi.setBrightness(cameraBrightness); }
     const refineData=ref(null);
     const refineJsonLoaded=ref(false);
     const REFINE_BUILTIN={
@@ -1427,8 +1441,11 @@ createApp({
       localStorage.setItem('lineage_inventory',JSON.stringify(inventory.value));
     }
     function persistConfig(){
+      const prev=JSON.parse(localStorage.getItem('lineage_config')||'{}');
       localStorage.setItem('lineage_config',JSON.stringify({
+        ...prev,                       // 保留 cameraMode 等其他欄位，避免被覆寫
         maxEnhLevel:maxEnhLevel.value,
+        brightness:cameraBrightness,
         priceConfig:{
           weapon:{list:[...priceConfig.weapon.list],sell:[...priceConfig.weapon.sell]},
           armor: {list:[...priceConfig.armor.list], sell:[...priceConfig.armor.sell] },
@@ -1441,6 +1458,7 @@ createApp({
     function loadConfigFrom(cfg){
       if(!cfg)return;
       if(cfg.maxEnhLevel) maxEnhLevel.value=cfg.maxEnhLevel;
+      if(typeof cfg.brightness==='number'){ cameraBrightness=Math.min(100,Math.max(1,cfg.brightness)); subSet.brightness=cameraBrightness; if(sceneApi)sceneApi.setBrightness(cameraBrightness); }
       if(cfg.priceConfig){
         const pc=cfg.priceConfig;
         if(pc.weapon&&pc.weapon.list&&pc.weapon.list.length) priceConfig.weapon.list=[...pc.weapon.list];
@@ -1464,6 +1482,7 @@ createApp({
     function closeSubPanel(){ subPanel.value=null; }
     function goSetting(){
       subSet.maxEnhLevel=maxEnhLevel.value;
+      subSet.brightness=cameraBrightness;
       subSet.twdRate=priceConfig.twdRate;
       subSet.weapon.list=[...priceConfig.weapon.list];
       subSet.weapon.sell=[...priceConfig.weapon.sell];
@@ -1484,16 +1503,18 @@ createApp({
     }
     function subSetSave(){
       maxEnhLevel.value=subSet.maxEnhLevel;
+      cameraBrightness=subSet.brightness; applyBrightness();
       priceConfig.twdRate=subSet.twdRate;
       priceConfig.weapon.list=[...subSet.weapon.list];
       priceConfig.weapon.sell=[...subSet.weapon.sell];
       priceConfig.armor.list=[...subSet.armor.list];
       priceConfig.armor.sell=[...subSet.armor.sell];
+      persistConfig();
       showToast('✓ 配置已儲存','var(--gold)');
       closeSubPanel();
     }
     function subSetReset(){
-      subSet.maxEnhLevel=12; subSet.twdRate=100;
+      subSet.maxEnhLevel=12; subSet.twdRate=100; subSet.brightness=50; applyBrightness();
       subSet.weapon.list=[...DEFAULT_WEAPON_LIST]; subSet.weapon.sell=Array(20).fill(0);
       subSet.armor.list=[...DEFAULT_ARMOR_LIST];  subSet.armor.sell=Array(20).fill(0);
       showToast('↺ 已恢復預設值');
@@ -1938,7 +1959,7 @@ createApp({
       DEFAULT_WEAPON_LIST,DEFAULT_ARMOR_LIST,
       subPanel,closeSubPanel,
       cpTwd,cpPresets,cpCoins,doCpTopup,
-      subSet,subSetSave,subSetReset,
+      subSet,subSetSave,subSetReset,applyBrightness,
       refineData,refineJsonLoaded,rtClamp,rtClass,
     };
   }
