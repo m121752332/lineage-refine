@@ -281,18 +281,20 @@ function createScene(canvas, opts = {}) {
     player.root.rotation.y = _playerFacing;
   });
 
-  // Candle the knight carries: a bright warm point light that lights ~10 tiles around.
-  const candle = new BABYLON.PointLight('candle', new BABYLON.Vector3(unit * 0.3, unit * 1.1, 0), scene);
+  // Candle the knight carries: a bright warm light giving a ~10-tile visibility disc.
+  // The light source sits well above the knight (the flame mesh stays in hand) so the
+  // lit floor area is a wide, fairly even disc rather than a tight glow at the feet.
+  const candle = new BABYLON.PointLight('candle', new BABYLON.Vector3(unit * 0.3, unit * 6, 0), scene);
   candle.parent = player.root;
-  candle.diffuse = new BABYLON.Color3(1.0, 0.93, 0.72);
-  candle.intensity = 3.4; candle.range = unit * 14;            // bright across ~10 tiles
-  candle.falloffType = BABYLON.Light.FALLOFF_GLTF;             // gentler than inverse-square = wider bright area
+  candle.diffuse = new BABYLON.Color3(1.0, 0.92, 0.74);
+  candle.intensity = 24; candle.range = unit * 21;            // fully lights ~10 tiles around the knight
+  candle.falloffType = BABYLON.Light.FALLOFF_GLTF;            // gentler than inverse-square = wider bright area
   const candleFlame = BABYLON.MeshBuilder.CreateSphere('candleFlame', { diameter: unit * 0.12 }, scene);
   const candleMat = new BABYLON.StandardMaterial('candleMat', scene);
   candleMat.emissiveColor = new BABYLON.Color3(1, 0.85, 0.5); candleMat.disableLighting = true;
   candleFlame.material = candleMat; candleFlame.parent = player.root; candleFlame.position.set(unit * 0.3, unit * 1.1, 0); candleFlame.isPickable = false;
   let _ct = 0;
-  scene.onBeforeRenderObservable.add(() => { _ct += 0.2; candle.intensity = 2.2 + Math.sin(_ct) * 0.25; });
+  scene.onBeforeRenderObservable.add(() => { _ct += 0.18; candle.intensity = 24 + Math.sin(_ct) * 1.2; });
 
   const olin = createOlin(scene);
   const plate = new BABYLON.DynamicTexture('plate', { width: 256, height: 64 }, scene, false);
