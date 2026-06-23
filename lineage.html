@@ -702,8 +702,8 @@ tr.sp-safe-row:hover td{background:rgba(20,60,20,0.3)!important;}
               <div class="sp-section-hd">💡 場景亮度</div>
               <div class="sp-section-body">
                 <div class="sp-slider-row">
-                  <span>1</span>
-                  <input type="range" v-model.number="subSet.brightness" min="1" max="100" step="1" @input="applyBrightness"/>
+                  <span>0</span>
+                  <input type="range" v-model.number="subSet.brightness" min="0" max="100" step="1" @input="applyBrightness"/>
                   <span>100</span>
                   <div class="sp-slider-val">{{subSet.brightness}}</div>
                 </div>
@@ -1234,11 +1234,11 @@ createApp({
     const cpPresets=[100,300,500,1000,3000,5000,10000,30000,50000,100000];
     const cpCoins=computed(()=>Math.max(0,(cpTwd.value||0)*priceConfig.twdRate));
     const subSet=reactive({
-      maxEnhLevel:12,twdRate:100,brightness:50,
+      maxEnhLevel:12,twdRate:100,brightness:70,
       weapon:{list:[...DEFAULT_WEAPON_LIST],sell:Array(20).fill(0)},
       armor:{list:[...DEFAULT_ARMOR_LIST],sell:Array(20).fill(0)},
     });
-    let cameraBrightness=50;   // current scene brightness (1-100), persisted in lineage_config
+    let cameraBrightness=70;   // current scene brightness (0-100), persisted in lineage_config
     function applyBrightness(){ cameraBrightness=subSet.brightness; if(sceneApi)sceneApi.setBrightness(cameraBrightness); }
     const refineData=ref(null);
     const refineJsonLoaded=ref(false);
@@ -1514,7 +1514,7 @@ createApp({
       closeSubPanel();
     }
     function subSetReset(){
-      subSet.maxEnhLevel=12; subSet.twdRate=100; subSet.brightness=50; applyBrightness();
+      subSet.maxEnhLevel=12; subSet.twdRate=100; subSet.brightness=70; applyBrightness();
       subSet.weapon.list=[...DEFAULT_WEAPON_LIST]; subSet.weapon.sell=Array(20).fill(0);
       subSet.armor.list=[...DEFAULT_ARMOR_LIST];  subSet.armor.sell=Array(20).fill(0);
       showToast('↺ 已恢復預設值');
@@ -1851,7 +1851,7 @@ createApp({
       const cfg=JSON.parse(localStorage.getItem('lineage_config')||'{}');
       sceneApi=createScene(c, {
         cameraMode: cfg.cameraMode==='rotatable' ? 'rotatable' : 'fixed',
-        brightness: (typeof cfg.brightness==='number') ? cfg.brightness : 50,
+        brightness: (typeof cfg.brightness==='number') ? cfg.brightness : 70,
         onGroundClick: (x,y)=>{
           if(ui.shop||ui.enhance||dialog.show)return;
           // 點在歐林可交談範圍內且玩家已靠近 → 交談；否則導航

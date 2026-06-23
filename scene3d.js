@@ -125,10 +125,13 @@ function buildLights(scene, brightness) {
   amb.groundColor = new BABYLON.Color3(0.05, 0.04, 0.03);
   return amb;
 }
-// Brightness slider 1-100 -> ambient intensity 0.01-1.0 (50 = the current 0.5 default).
+// Brightness slider 0-100 -> ambient intensity 0..MAX, graded full-dark to full-bright.
+// MAX is well above 1.0 so that at 100 even the dark stone/floor materials read as
+// daylight (0 = pitch black, only fire/candle light; 100 = whole map clearly lit).
+const MAX_AMBIENT = 2.6;
 function brightnessToAmbient(b) {
-  const v = Math.min(100, Math.max(1, typeof b === 'number' ? b : 50));
-  return v / 100;
+  const v = Math.min(100, Math.max(0, typeof b === 'number' ? b : 70));
+  return (v / 100) * MAX_AMBIENT;
 }
 // Soft radial glow used as the fire particle sprite (no external asset).
 let _flameTex = null;
