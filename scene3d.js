@@ -118,11 +118,17 @@ function createOlin(scene) {
   return { root };
 }
 
-function buildLights(scene) {
+function buildLights(scene, brightness) {
   const amb = new BABYLON.HemisphericLight('amb', new BABYLON.Vector3(0, 1, 0), scene);
-  amb.intensity = 0.5;                                   // base map visibility (brighter dungeon)
+  amb.intensity = brightnessToAmbient(brightness);       // map brightness slider (1-100) -> ambient
   amb.diffuse = new BABYLON.Color3(0.5, 0.45, 0.4);
   amb.groundColor = new BABYLON.Color3(0.05, 0.04, 0.03);
+  return amb;
+}
+// Brightness slider 1-100 -> ambient intensity 0.01-1.0 (50 = the current 0.5 default).
+function brightnessToAmbient(b) {
+  const v = Math.min(100, Math.max(1, typeof b === 'number' ? b : 50));
+  return v / 100;
 }
 // Soft radial glow used as the fire particle sprite (no external asset).
 let _flameTex = null;
@@ -259,7 +265,7 @@ function createScene(canvas, opts = {}) {
   ground.material = gmat;
 
   buildLevel(scene);
-  buildLights(scene);
+  const ambLight = buildLights(scene, opts.brightness);
   buildFireProps(scene);
 
   const player = createKnight(scene);
@@ -320,6 +326,7 @@ function createScene(canvas, opts = {}) {
 
   return {
     setCameraMode: (m) => { opts.cameraMode = m; setCameraMode(m); },
+    setBrightness: (b) => { ambLight.intensity = brightnessToAmbient(b); },
     setPlayer: (x, y, moving) => {
       const { X, Z } = logicToWorld(x, y);
       if (moving) { const dx = X - player.root.position.x, dz = Z - player.root.position.z; if (dx || dz) _playerFacing = Math.atan2(dx, dz); }

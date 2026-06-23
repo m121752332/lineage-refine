@@ -1830,6 +1830,7 @@ createApp({
       const cfg=JSON.parse(localStorage.getItem('lineage_config')||'{}');
       sceneApi=createScene(c, {
         cameraMode: cfg.cameraMode==='rotatable' ? 'rotatable' : 'fixed',
+        brightness: (typeof cfg.brightness==='number') ? cfg.brightness : 50,
         onGroundClick: (x,y)=>{
           if(ui.shop||ui.enhance||dialog.show)return;
           // 點在歐林可交談範圍內且玩家已靠近 → 交談；否則導航

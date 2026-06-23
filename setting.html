@@ -153,6 +153,23 @@ html,body{width:100%;min-height:100%;background:#080503;font-family:'Noto Serif 
       </div>
     </div>
 
+    <!-- 場景亮度 -->
+    <div class="section">
+      <div class="section-hd">💡 場景亮度</div>
+      <div class="section-body">
+        <div class="slider-row">
+          <span>1</span>
+          <input type="range" v-model.number="brightness" min="1" max="100" step="1"/>
+          <span>100</span>
+          <div class="slider-val">{{ brightness }}</div>
+        </div>
+        <div class="section-note">
+          控制整張地圖的環境亮度（不影響主角蠟燭）。<br>
+          目前設定：<span style="color:var(--gold2)">{{ brightness }}</span> / 100（預設 50）。數值越高地圖越亮。
+        </div>
+      </div>
+    </div>
+
     <!-- 武器牌價 + 售價 -->
     <div class="section">
       <div class="section-hd">⚔ 武器收購價格配置（+1 ~ +{{ maxEnhLevel }}）</div>
@@ -237,6 +254,7 @@ createApp({
     const maxEnhLevel = ref(12);
     const twdRate = ref(100);
     const cameraMode = ref('fixed');   // 'fixed' | 'rotatable' — 場景視角模式
+    const brightness = ref(50);        // 1~100 場景亮度（環境光）
     const weapon = reactive({ list: [...DEF_WEAPON], sell: Array(20).fill(0) });
     const armor  = reactive({ list: [...DEF_ARMOR],  sell: Array(20).fill(0) });
     const toast = reactive({ show: false, text: '', color: 'var(--border)' });
@@ -251,6 +269,7 @@ createApp({
       if (cfg) {
         if (cfg.maxEnhLevel) maxEnhLevel.value = cfg.maxEnhLevel;
         if (cfg.cameraMode === 'rotatable' || cfg.cameraMode === 'fixed') cameraMode.value = cfg.cameraMode;
+        if (typeof cfg.brightness === 'number') brightness.value = Math.min(100, Math.max(1, cfg.brightness));
         if (cfg.priceConfig) {
           const pc = cfg.priceConfig;
           if (pc.weapon?.list?.length) weapon.list = [...pc.weapon.list];
@@ -274,6 +293,7 @@ createApp({
       localStorage.setItem('lineage_config', JSON.stringify({
         maxEnhLevel: maxEnhLevel.value,
         cameraMode: cameraMode.value,
+        brightness: brightness.value,
         priceConfig: {
           weapon: { list: [...weapon.list], sell: [...weapon.sell] },
           armor:  { list: [...armor.list],  sell: [...armor.sell]  },
@@ -288,6 +308,7 @@ createApp({
       maxEnhLevel.value = 12;
       twdRate.value = 100;
       cameraMode.value = 'fixed';
+      brightness.value = 50;
       weapon.list = [...DEF_WEAPON];
       weapon.sell = Array(20).fill(0);
       armor.list  = [...DEF_ARMOR];
@@ -295,7 +316,7 @@ createApp({
       showToast('↺ 已恢復預設值', 'var(--border)');
     }
 
-    return { charName, maxEnhLevel, twdRate, cameraMode, weapon, armor, toast, doSave, doReset };
+    return { charName, maxEnhLevel, twdRate, cameraMode, brightness, weapon, armor, toast, doSave, doReset };
   }
 }).mount('#app');
 </script>
