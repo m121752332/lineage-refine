@@ -28,10 +28,10 @@ function buildLevel(scene) {
   const unit = TILE_PX * WORLD_SCALE;          // one tile in world units
   const wallH = unit * 1.6;
   const wallMat = new BABYLON.StandardMaterial('wallMat', scene);
-  wallMat.diffuseTexture = stoneTexture(scene, '#3a2f24', 'wallTex');
+  wallMat.diffuseTexture = stoneTexture(scene, '#6a5a44', 'wallTex');   // brighter stone
   wallMat.specularColor = new BABYLON.Color3(0, 0, 0);
   const pillarMat = new BABYLON.StandardMaterial('pillarMat', scene);
-  pillarMat.diffuseTexture = stoneTexture(scene, '#2c241b', 'pillarTex');
+  pillarMat.diffuseTexture = stoneTexture(scene, '#544735', 'pillarTex');
   pillarMat.specularColor = new BABYLON.Color3(0, 0, 0);
 
   const walls = [];
@@ -120,7 +120,7 @@ function createOlin(scene) {
 
 function buildLights(scene) {
   const amb = new BABYLON.HemisphericLight('amb', new BABYLON.Vector3(0, 1, 0), scene);
-  amb.intensity = 0.26;                                  // dim base = dungeon dark
+  amb.intensity = 0.5;                                   // base map visibility (brighter dungeon)
   amb.diffuse = new BABYLON.Color3(0.5, 0.45, 0.4);
   amb.groundColor = new BABYLON.Color3(0.05, 0.04, 0.03);
 }
@@ -254,7 +254,7 @@ function createScene(canvas, opts = {}) {
   // Ground plane (sized to the map) — pickable for click-to-walk
   const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: worldW, height: worldH }, scene);
   const gmat = new BABYLON.StandardMaterial('gmat', scene);
-  gmat.diffuseColor = new BABYLON.Color3(0.18, 0.14, 0.08);
+  gmat.diffuseColor = new BABYLON.Color3(0.36, 0.29, 0.18);  // brighter dirt floor
   gmat.specularColor = new BABYLON.Color3(0, 0, 0);
   ground.material = gmat;
 
@@ -284,17 +284,17 @@ function createScene(canvas, opts = {}) {
   // Candle the knight carries: a bright warm light giving a ~10-tile visibility disc.
   // The light source sits well above the knight (the flame mesh stays in hand) so the
   // lit floor area is a wide, fairly even disc rather than a tight glow at the feet.
-  const candle = new BABYLON.PointLight('candle', new BABYLON.Vector3(unit * 0.3, unit * 6, 0), scene);
+  const candle = new BABYLON.PointLight('candle', new BABYLON.Vector3(unit * 0.3, unit * 10, 0), scene);
   candle.parent = player.root;
-  candle.diffuse = new BABYLON.Color3(1.0, 0.92, 0.74);
-  candle.intensity = 24; candle.range = unit * 21;            // fully lights ~10 tiles around the knight
-  candle.falloffType = BABYLON.Light.FALLOFF_GLTF;            // gentler than inverse-square = wider bright area
+  candle.diffuse = new BABYLON.Color3(1.0, 0.93, 0.76);
+  candle.intensity = 120; candle.range = unit * 36;          // warm "daylight" pool spanning ~20 tiles
+  candle.falloffType = BABYLON.Light.FALLOFF_GLTF;           // gentler than inverse-square = wider bright area
   const candleFlame = BABYLON.MeshBuilder.CreateSphere('candleFlame', { diameter: unit * 0.12 }, scene);
   const candleMat = new BABYLON.StandardMaterial('candleMat', scene);
   candleMat.emissiveColor = new BABYLON.Color3(1, 0.85, 0.5); candleMat.disableLighting = true;
   candleFlame.material = candleMat; candleFlame.parent = player.root; candleFlame.position.set(unit * 0.3, unit * 1.1, 0); candleFlame.isPickable = false;
   let _ct = 0;
-  scene.onBeforeRenderObservable.add(() => { _ct += 0.18; candle.intensity = 24 + Math.sin(_ct) * 1.2; });
+  scene.onBeforeRenderObservable.add(() => { _ct += 0.18; candle.intensity = 120 + Math.sin(_ct) * 6; });
 
   const olin = createOlin(scene);
   const plate = new BABYLON.DynamicTexture('plate', { width: 256, height: 64 }, scene, false);
