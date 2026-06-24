@@ -20,7 +20,7 @@ canvas{display:block;}
 
 /* ===== 遊戲場景 ===== */
 .game-scene{position:absolute;inset:0;background:#000;}
-#gameCanvas{position:absolute;inset:0;z-index:0;}
+#gameCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:0;outline:none;touch-action:none;}
 
 /* ===== HUD ===== */
 .hud{position:absolute;top:0;left:0;right:0;pointer-events:none;z-index:10;}
@@ -338,6 +338,32 @@ canvas{display:block;}
 }
 
 /* ===== 背包切換按鈕 ===== */
+.minimap{
+  position:absolute;top:48px;right:10px;z-index:20;pointer-events:none;
+  width:170px;
+  background:rgba(10,7,4,0.82);border:2px solid var(--border);
+  padding:3px;box-shadow:0 2px 10px rgba(0,0,0,0.6);
+  transition:width 0.18s ease;
+}
+.minimap.expanded{ width:26vw;min-width:300px; }
+.minimap-title{
+  color:var(--gold2);font-size:11px;font-weight:700;text-align:center;
+  padding:1px 0 3px 22px;letter-spacing:1px;
+}
+.minimap-cv{ display:block;width:100%;height:auto;image-rendering:pixelated;border:1px solid var(--border); }
+.minimap-zoom{
+  position:absolute;top:3px;left:5px;pointer-events:all;
+  background:rgba(10,7,4,0.85);border:1px solid var(--border);color:var(--gold2);
+  font-size:13px;line-height:1;padding:2px 5px;cursor:pointer;font-family:inherit;
+}
+.minimap-zoom:hover{ border-color:var(--gold);background:rgba(90,58,26,0.7); }
+.minimap-legend{
+  display:flex;flex-wrap:wrap;gap:2px 8px;padding:4px 2px 1px;
+}
+.minimap-legend span{ display:flex;align-items:center;gap:3px;color:var(--text);font-size:10px;line-height:1.3;white-space:nowrap; }
+.minimap-legend i{ width:9px;height:9px;display:inline-block;border-radius:2px;flex:none; }
+.minimap:not(.expanded) .minimap-legend{ font-size:9px; }
+.minimap:not(.expanded) .mm-more{ display:none; }
 .bag-toggle{
   position:absolute;top:192px;right:10px;
   width:40px;height:40px;
@@ -610,6 +636,23 @@ tr.sp-safe-row:hover td{background:rgba(20,60,20,0.3)!important;}
     :class="hammerMode.active ? 'hammer-'+hammerMode.target : ''"
     @keydown.esc="cancelHammer">
     <canvas id="gameCanvas" ref="canvas"></canvas>
+
+    <!-- 小地圖：玩家(綠)＋歐林(金)即時位置；右上角，可放大/縮小 -->
+    <div class="minimap" ref="miniWrap" :class="{expanded:minimap.expanded}">
+      <div class="minimap-title">📍 地圖</div>
+      <canvas ref="miniCanvas" class="minimap-cv" width="192" height="144"></canvas>
+      <button class="minimap-zoom" @click="minimap.expanded=!minimap.expanded"
+        :title="minimap.expanded?'縮小地圖':'放大地圖'">{{minimap.expanded?'🔍➖':'🔍➕'}}</button>
+      <div class="minimap-legend">
+        <span><i style="background:#7fff7f"></i>玩家(你)</span>
+        <span><i style="background:#f0d060"></i>歐林商人</span>
+        <span><i style="background:#e0762a"></i>火把/營火</span>
+        <span><i style="background:#7a5a30"></i>牆壁</span>
+        <span class="mm-more"><i style="background:#6e5230"></i>柱子</span>
+        <span class="mm-more"><i style="background:#ffffff;outline:1px solid #888"></i>目的地</span>
+      </div>
+    </div>
+
     <!-- 地圖導航橫幅（畫面正上方置中） -->
     <div v-if="nav.active" class="nav-banner">
       <span>🧭 地圖導航中…</span>
@@ -696,6 +739,18 @@ tr.sp-safe-row:hover td{background:rgba(20,60,20,0.3)!important;}
                   <div class="sp-slider-val">+{{subSet.maxEnhLevel}}</div>
                 </div>
                 <div class="sp-note">目前設定：裝備最高可精煉至 <span style="color:var(--gold2)">+{{subSet.maxEnhLevel}}</span></div>
+              </div>
+            </div>
+            <div class="sp-section">
+              <div class="sp-section-hd">💡 場景亮度</div>
+              <div class="sp-section-body">
+                <div class="sp-slider-row">
+                  <span>0</span>
+                  <input type="range" v-model.number="subSet.brightness" min="0" max="100" step="1" @input="applyBrightness"/>
+                  <span>100</span>
+                  <div class="sp-slider-val">{{subSet.brightness}}</div>
+                </div>
+                <div class="sp-note">控制整張地圖的環境亮度（不影響主角蠟燭）。拖動即時生效，記得按下方儲存。目前：<span style="color:var(--gold2)">{{subSet.brightness}}</span> / 100</div>
               </div>
             </div>
             <div class="sp-section">
@@ -1005,10 +1060,10 @@ tr.sp-safe-row:hover td{background:rgba(20,60,20,0.3)!important;}
     </div>
 
     <!-- 背包切換按鈕（小地圖下方，開啟背包時隱藏） -->
-    <div v-if="!ui.inventory" class="bag-toggle" @click="ui.inventory=true" title="背包 (I)">🎒</div>
+    <div v-if="!ui.inventory" class="bag-toggle" :style="bagToggleStyle" @click="ui.inventory=true" title="背包 (I)">🎒</div>
 
     <!-- 背包 -->
-    <div v-if="ui.inventory" class="inventory-panel">
+    <div v-if="ui.inventory" class="inventory-panel" :style="invPanelStyle">
       <div class="panel-header">
         <span class="panel-title">背　包</span>
         <button class="panel-close" @click="closeInventory">✕</button>
@@ -1143,14 +1198,36 @@ tr.sp-safe-row:hover td{background:rgba(20,60,20,0.3)!important;}
   </div>
 
 </div>
+<!-- 3D 場景相依（classic scripts，file:// 可用）：Babylon → nav3d → scene3d，需在主程式前載入 -->
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script src="nav3d.js"></script>
+<script src="scene3d.js"></script>
 <script>
+// nav3d.js / scene3d.js are loaded as classic scripts above and expose globals,
+// so this page works over file:// (ES modules don't load from file://).
+const { findPath, canStep, walkable, findChar, cellAt, mapSize, TILE_PX } = globalThis.Nav3D;
+const { createScene } = globalThis.Scene3D;
 const {createApp,ref,reactive,computed,nextTick,onMounted,watch} = Vue;
 createApp({
   setup(){
     // ─── 狀態 ───
     const ready=ref(false);
     const charName=ref(''), gold=ref(10000000);
-    const canvas=ref(null), msgLog=ref(null);
+    const canvas=ref(null), msgLog=ref(null), miniCanvas=ref(null);
+    const miniWrap=ref(null);
+    // belowY = 地圖實際底邊（px）；背包按鈕／背包面板的 top 跟著它走，放大縮小即時推開
+    const minimap=reactive({expanded:false, belowY:192});
+    // 量測地圖目前佔用高度，更新底邊 Y（含 8px 間距）
+    function measureMinimap(){
+      const el=miniWrap.value; if(!el) return;
+      minimap.belowY=el.offsetTop + el.offsetHeight + 8;
+    }
+    // 背包按鈕／背包面板的動態定位（緊貼地圖下緣，避免疊層覆蓋）
+    const bagToggleStyle=computed(()=>({ top:minimap.belowY + 'px' }));
+    const invPanelStyle=computed(()=>({
+      top:minimap.belowY + 'px',
+      maxHeight:`calc(100vh - ${minimap.belowY + 16}px)`
+    }));
     const messages=ref([]);
     const shopTab=ref('weapon');
     const selSlot=ref(null);
@@ -1214,10 +1291,12 @@ createApp({
     const cpPresets=[100,300,500,1000,3000,5000,10000,30000,50000,100000];
     const cpCoins=computed(()=>Math.max(0,(cpTwd.value||0)*priceConfig.twdRate));
     const subSet=reactive({
-      maxEnhLevel:12,twdRate:100,
+      maxEnhLevel:12,twdRate:100,brightness:70,
       weapon:{list:[...DEFAULT_WEAPON_LIST],sell:Array(20).fill(0)},
       armor:{list:[...DEFAULT_ARMOR_LIST],sell:Array(20).fill(0)},
     });
+    let cameraBrightness=70;   // current scene brightness (0-100), persisted in lineage_config
+    function applyBrightness(){ cameraBrightness=subSet.brightness; if(sceneApi)sceneApi.setBrightness(cameraBrightness); }
     const refineData=ref(null);
     const refineJsonLoaded=ref(false);
     const REFINE_BUILTIN={
@@ -1250,130 +1329,14 @@ createApp({
 
     // ─── 地圖常數 ───
     let ctx=null;
-    let wx=330, wy=370;
+    // 起點與歐林位置改由 nav3d.js 的 tilemap 決定（地圖唯一真值來源）
+    const _start=findChar('S'); let wx=_start.x, wy=_start.y;
+    const _olin=findChar('O'); const OLIN_X=_olin.x, OLIN_Y=_olin.y;
     const SPEED=2.0;
     let walkFrame=0,walkTick=0;
     let keys={};
-    const TILE=32;
-    const WALL=36;
-    const rooms=[
-      {x:80,  y:180, w:500, h:380},
-      {x:508, y:280, w:200, h:160},
-      {x:636, y:120, w:320, h:280},
-      {x:250, y:524, w:140, h:180},
-      {x:150, y:668, w:340, h:220},
-    ];
-    function walkable(rx,ry){
-      // 障礙物（書櫃、書架）不可進入
-      for(const o of obstacles){
-        if(rx>=o.x && rx<=o.x+o.w && ry>=o.y && ry<=o.y+o.h) return false;
-      }
-      for(const r of rooms){
-        if(rx>=r.x+WALL && rx<=r.x+r.w-WALL &&
-           ry>=r.y+WALL && ry<=r.y+r.h-WALL) return true;
-      }
-      return false;
-    }
-    const OLIN_X=796, OLIN_Y=260;
-    // 家具碰撞箱：玩家無法走入書櫃／書架所在位置
-    const obstacles=[
-      {x:706,        y:150,        w:180, h:74},   // 書櫃（歐林後方）
-      {x:OLIN_X-30,  y:OLIN_Y+12,  w:60,  h:42},   // 書架（歐林前方）
-    ];
 
-    // ══════════════════════════════════════════
-    //  地圖導航：網格 A* 自動尋路（geo 以 walkable() 為唯一真值來源）
-    // ══════════════════════════════════════════
-    const NAV_CELL=16, NAV_R=14;          // 格寬、可導航半身位裕度
-    let navGrid=null;                     // {cols,rows,minX,minY,cell:Uint8Array}
-    // 一格「可導航」＝中心與中心±NAV_R 四向皆 walkable（白線因此天生不壓牆/障礙）
-    function navCellOK(cx,cy){
-      return walkable(cx,cy)&&walkable(cx-NAV_R,cy)&&walkable(cx+NAV_R,cy)
-                            &&walkable(cx,cy-NAV_R)&&walkable(cx,cy+NAV_R);
-    }
-    function buildNavGrid(){
-      let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-      for(const r of rooms){
-        minX=Math.min(minX,r.x); minY=Math.min(minY,r.y);
-        maxX=Math.max(maxX,r.x+r.w); maxY=Math.max(maxY,r.y+r.h);
-      }
-      const cols=Math.ceil((maxX-minX)/NAV_CELL), rows=Math.ceil((maxY-minY)/NAV_CELL);
-      const cell=new Uint8Array(cols*rows);
-      for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){
-        const cx=minX+col*NAV_CELL+NAV_CELL/2, cy=minY+row*NAV_CELL+NAV_CELL/2;
-        cell[row*cols+col]=navCellOK(cx,cy)?1:0;
-      }
-      navGrid={cols,rows,minX,minY,cell};
-    }
-    function navReady(){ if(!navGrid)buildNavGrid(); return navGrid; }
-    function worldToCell(x,y){ const g=navReady(); return {col:Math.floor((x-g.minX)/NAV_CELL),row:Math.floor((y-g.minY)/NAV_CELL)}; }
-    function cellCenter(col,row){ const g=navReady(); return {x:g.minX+col*NAV_CELL+NAV_CELL/2,y:g.minY+row*NAV_CELL+NAV_CELL/2}; }
-    function cellNavigable(col,row){ const g=navReady(); if(col<0||row<0||col>=g.cols||row>=g.rows)return false; return g.cell[row*g.cols+col]===1; }
-    // 由格座標向外環狀搜尋最近可導航格（玩家可能站在邊界格）
-    function nearestNavCell(col,row){
-      const g=navReady(); const maxRad=Math.max(g.cols,g.rows);
-      if(cellNavigable(col,row))return {col,row};
-      for(let rad=1;rad<maxRad;rad++)for(let dr=-rad;dr<=rad;dr++)for(let dc=-rad;dc<=rad;dc++){
-        if(Math.max(Math.abs(dr),Math.abs(dc))!==rad)continue;
-        if(cellNavigable(col+dc,row+dr))return {col:col+dc,row:row+dr};
-      }
-      return null;
-    }
-    // 線段是否整段可走（用於白線平滑）
-    function navLineClear(a,b){
-      const dist=Math.hypot(b.x-a.x,b.y-a.y), steps=Math.ceil(dist/(NAV_CELL/2));
-      for(let i=0;i<=steps;i++){
-        const t=steps?i/steps:0, x=a.x+(b.x-a.x)*t, y=a.y+(b.y-a.y)*t;
-        if(!navCellOK(x,y))return false;
-      }
-      return true;
-    }
-    function smoothPath(path){
-      if(path.length<=2)return path;
-      const out=[path[0]]; let i=0;
-      while(i<path.length-1){
-        let j=path.length-1;
-        while(j>i+1&&!navLineClear(path[i],path[j]))j--;
-        out.push(path[j]); i=j;
-      }
-      return out;
-    }
-    // A*：回傳世界座標航點陣列，或 null（不可到達）
-    function findPath(sx,sy,tx,ty){
-      const g=navReady();
-      let s=nearestNavCell(...Object.values(worldToCell(sx,sy)));
-      const tc=worldToCell(tx,ty);
-      if(!s||!cellNavigable(tc.col,tc.row))return null;
-      const idx=(c,r)=>r*g.cols+c;
-      const startK=idx(s.col,s.row), goalK=idx(tc.col,tc.row);
-      const came=new Map(), gScore=new Map([[startK,0]]), closed=new Set();
-      const heur=(c,r)=>Math.hypot(c-tc.col,r-tc.row);
-      const open=[{c:s.col,r:s.row,f:heur(s.col,s.row)}];
-      const dirs=[[1,0,1],[-1,0,1],[0,1,1],[0,-1,1],[1,1,1.414],[1,-1,1.414],[-1,1,1.414],[-1,-1,1.414]];
-      while(open.length){
-        let bi=0; for(let i=1;i<open.length;i++)if(open[i].f<open[bi].f)bi=i;
-        const cur=open.splice(bi,1)[0], ck=idx(cur.c,cur.r);
-        if(ck===goalK){
-          const cells=[]; let k=ck;
-          while(k!==undefined){ cells.push({x:cellCenter(k%g.cols,Math.floor(k/g.cols)).x,y:cellCenter(k%g.cols,Math.floor(k/g.cols)).y}); k=came.get(k); }
-          return smoothPath(cells.reverse());
-        }
-        if(closed.has(ck))continue;
-        closed.add(ck);
-        for(const [dc,dr,cost] of dirs){
-          const nc=cur.c+dc, nr=cur.r+dr;
-          if(!cellNavigable(nc,nr))continue;
-          if(dc!==0&&dr!==0&&(!cellNavigable(cur.c+dc,cur.r)||!cellNavigable(cur.c,cur.r+dr)))continue; // 不切牆角
-          const nk=idx(nc,nr); if(closed.has(nk))continue;
-          const tentative=gScore.get(ck)+cost;
-          if(tentative<(gScore.has(nk)?gScore.get(nk):Infinity)){
-            came.set(nk,ck); gScore.set(nk,tentative);
-            open.push({c:nc,r:nr,f:tentative+heur(nc,nr)});
-          }
-        }
-      }
-      return null;
-    }
+    // 導航網格 / A* 尋路 / 直線平滑 / 碰撞檢查 皆移至 nav3d.js（3D 原生，tilemap 為唯一真值）
     // ─── 導航控制 ───
     function startNavTo(tx,ty){
       const path=findPath(wx,wy,tx,ty);
@@ -1387,7 +1350,7 @@ createApp({
       if(msg)addMsg(msg, msg.indexOf('無法')>=0||msg.indexOf('停止')>=0?'red':'blue');
     }
     function pauseNav(){ stopNav('⏸ 已暫停地圖導航'); }
-    // 每幀沿航點前進；下一步以 walkable() 再驗證，受阻立即停止
+    // 每幀沿航點前進；下一步以 nav3d 的 canStep() 再驗證，受阻立即停止
     function navStep(){
       const wp=nav.path[nav.idx];
       if(!wp){ stopNav(); return; }
@@ -1397,11 +1360,10 @@ createApp({
         if(nav.idx>=nav.path.length)stopNav();
         walkTick++; walkFrame=Math.floor(walkTick/10)%4; return;
       }
-      const ux=dx/dist, uy=dy/dist, nx=wx+ux*SPEED, ny=wy+uy*SPEED, px=16;
-      const inX=walkable(nx,wy-px)||walkable(nx,wy+px);
-      const inY=walkable(wx-px,ny)||walkable(wx+px,ny);
-      if(!inX&&!inY){ stopNav('⚠ 前方無法通行，已停止導航'); return; }
-      if(inX)wx=nx; if(inY)wy=ny;
+      const ux=dx/dist, uy=dy/dist, nx=wx+ux*SPEED, ny=wy+uy*SPEED;
+      if(!canStep(wx,wy,nx,ny)){ stopNav('⚠ 前方無法通行，已停止導航'); return; }
+      if(walkable(nx,wy-16)||walkable(nx,wy+16)) wx=nx;
+      if(walkable(wx-16,ny)||walkable(wx+16,ny)) wy=ny;
       walkTick++; walkFrame=Math.floor(walkTick/10)%4;
     }
 
@@ -1536,8 +1498,11 @@ createApp({
       localStorage.setItem('lineage_inventory',JSON.stringify(inventory.value));
     }
     function persistConfig(){
+      const prev=JSON.parse(localStorage.getItem('lineage_config')||'{}');
       localStorage.setItem('lineage_config',JSON.stringify({
+        ...prev,                       // 保留 cameraMode 等其他欄位，避免被覆寫
         maxEnhLevel:maxEnhLevel.value,
+        brightness:cameraBrightness,
         priceConfig:{
           weapon:{list:[...priceConfig.weapon.list],sell:[...priceConfig.weapon.sell]},
           armor: {list:[...priceConfig.armor.list], sell:[...priceConfig.armor.sell] },
@@ -1550,6 +1515,7 @@ createApp({
     function loadConfigFrom(cfg){
       if(!cfg)return;
       if(cfg.maxEnhLevel) maxEnhLevel.value=cfg.maxEnhLevel;
+      if(typeof cfg.brightness==='number'){ cameraBrightness=Math.min(100,Math.max(1,cfg.brightness)); subSet.brightness=cameraBrightness; if(sceneApi)sceneApi.setBrightness(cameraBrightness); }
       if(cfg.priceConfig){
         const pc=cfg.priceConfig;
         if(pc.weapon&&pc.weapon.list&&pc.weapon.list.length) priceConfig.weapon.list=[...pc.weapon.list];
@@ -1573,6 +1539,7 @@ createApp({
     function closeSubPanel(){ subPanel.value=null; }
     function goSetting(){
       subSet.maxEnhLevel=maxEnhLevel.value;
+      subSet.brightness=cameraBrightness;
       subSet.twdRate=priceConfig.twdRate;
       subSet.weapon.list=[...priceConfig.weapon.list];
       subSet.weapon.sell=[...priceConfig.weapon.sell];
@@ -1593,16 +1560,18 @@ createApp({
     }
     function subSetSave(){
       maxEnhLevel.value=subSet.maxEnhLevel;
+      cameraBrightness=subSet.brightness; applyBrightness();
       priceConfig.twdRate=subSet.twdRate;
       priceConfig.weapon.list=[...subSet.weapon.list];
       priceConfig.weapon.sell=[...subSet.weapon.sell];
       priceConfig.armor.list=[...subSet.armor.list];
       priceConfig.armor.sell=[...subSet.armor.sell];
+      persistConfig();
       showToast('✓ 配置已儲存','var(--gold)');
       closeSubPanel();
     }
     function subSetReset(){
-      subSet.maxEnhLevel=12; subSet.twdRate=100;
+      subSet.maxEnhLevel=12; subSet.twdRate=100; subSet.brightness=70; applyBrightness();
       subSet.weapon.list=[...DEFAULT_WEAPON_LIST]; subSet.weapon.sell=Array(20).fill(0);
       subSet.armor.list=[...DEFAULT_ARMOR_LIST];  subSet.armor.sell=Array(20).fill(0);
       showToast('↺ 已恢復預設值');
@@ -1912,542 +1881,6 @@ createApp({
     // ══════════════════════════════════════════
     //  CANVAS 渲染引擎
     // ══════════════════════════════════════════
-    function initCanvas(){
-      const c=canvas.value; if(!c)return;
-      c.width=window.innerWidth; c.height=window.innerHeight;
-      ctx=c.getContext('2d');
-      window.addEventListener('resize',()=>{c.width=window.innerWidth;c.height=window.innerHeight;});
-      window.addEventListener('keydown',e=>{
-        keys[e.key]=true;
-        if(e.key==='i'||e.key==='I')ui.inventory=!ui.inventory;
-        if(e.key==='Escape'){
-          if(hammerMode.active){cancelHammer();return;}
-          dialog.show=false;ui.shop=false;ui.enhance=false;
-        }
-      });
-      window.addEventListener('mousemove',e=>{
-        cursorPos.x=e.clientX; cursorPos.y=e.clientY; cursorPos.visible=true;
-      });
-      window.addEventListener('mouseleave',()=>{cursorPos.visible=false;});
-      window.addEventListener('keyup',e=>keys[e.key]=false);
-      c.addEventListener('click',e=>{
-        if(ui.shop||ui.enhance||dialog.show)return;
-        const rect=c.getBoundingClientRect();
-        const mx=e.clientX-rect.left, my=e.clientY-rect.top;
-        const W=c.width,H=c.height;
-        const camX=W/2-wx, camY=H/2-wy;
-        const wox=OLIN_X+camX, woy=OLIN_Y+camY;
-        if(Math.hypot(mx-wox,my-woy)<50){
-          const playerDist=Math.hypot(wx-OLIN_X, wy-OLIN_Y);
-          if(playerDist<=108){ talkToOlin(); return; }
-          // 太遠：自動導航到歐林附近最近可站立點
-          const near=nearestNavCell(...Object.values(worldToCell(OLIN_X,OLIN_Y)));
-          if(near){ const c2=cellCenter(near.col,near.row); startNavTo(c2.x,c2.y); }
-          else addMsg('⚠ 距離太遠！請靠近歐林商人後再點擊（3格內）','red');
-          return;
-        }
-        // 一般地板點擊 → 地圖導航（螢幕座標反算世界座標）
-        startNavTo(mx-camX, my-camY);
-      });
-      requestAnimationFrame(loop);
-    }
-
-    function loop(){
-      const W=ctx.canvas.width, H=ctx.canvas.height;
-      if(!ui.shop&&!ui.enhance&&!dialog.show){
-        const pressing=keys['ArrowLeft']||keys['a']||keys['ArrowRight']||keys['d']
-                     ||keys['ArrowUp']||keys['w']||keys['ArrowDown']||keys['s'];
-        if(nav.active&&pressing)stopNav('⏸ 已手動中斷導航'); // WASD/方向鍵 → 立即中斷導航
-        if(nav.active){
-          navStep();
-        } else {
-          let dx=0,dy=0;
-          if(keys['ArrowLeft']||keys['a'])dx=-SPEED;
-          if(keys['ArrowRight']||keys['d'])dx=SPEED;
-          if(keys['ArrowUp']||keys['w'])dy=-SPEED;
-          if(keys['ArrowDown']||keys['s'])dy=SPEED;
-          if(dx!==0&&dy!==0){dx*=0.707;dy*=0.707;}
-          const nx=wx+dx, ny=wy+dy;
-          const px=16;
-          const inX=walkable(nx,wy-px)||walkable(nx,wy+px);
-          const inY=walkable(wx-px,ny)||walkable(wx+px,ny);
-          if(inX)wx=nx;
-          if(inY)wy=ny;
-          if(dx!==0||dy!==0)walkTick++;
-          else walkTick=0;
-          walkFrame=Math.floor(walkTick/10)%4;
-        }
-      }
-      render(W,H);
-      requestAnimationFrame(loop);
-    }
-
-    function camOffset(W,H){return {cx:W/2-wx, cy:H/2-wy};}
-
-    function render(W,H){
-      ctx.clearRect(0,0,W,H);
-      const {cx,cy}=camOffset(W,H);
-      ctx.save();
-      ctx.translate(cx,cy);
-
-      drawAllRooms();
-      drawDecorations();
-      drawBookshelf(OLIN_X,OLIN_Y-40);   // 書櫃：在歐林後方
-      drawNPC(OLIN_X,OLIN_Y);
-      drawBookStand(OLIN_X,OLIN_Y+46);   // 書架＋書本：在歐林前方
-      drawPlayer(wx,wy);
-      if(nav.active)drawNavPath();        // 白線＋紅點（鏡頭座標系內）
-
-      ctx.restore();
-      drawDepthOverlay(W,H);             // 2.5D 氛圍／景深
-      drawMinimap(W,H);
-      drawHints(W,H);
-    }
-
-    function drawAllRooms(){
-      for(const r of rooms) drawRoom(r);
-      drawCorridor(544,360,672,360,200,160);
-      drawCorrider2(320,524,320,668,140,180);
-    }
-
-    function drawRoom(r){
-      const {x,y,w,h}=r;
-      drawFloor(x+WALL,y+WALL,w-WALL*2,h-WALL*2);
-      drawWallTop(x,y,w,WALL);
-      drawWallTop(x,y+h-WALL,w,WALL);
-      drawWallSide(x,y+WALL,WALL,h-WALL*2);
-      drawWallSide(x+w-WALL,y+WALL,WALL,h-WALL*2);
-      drawPillar(x,y,WALL,WALL);
-      drawPillar(x+w-WALL,y,WALL,WALL);
-      drawPillar(x,y+h-WALL,WALL,WALL);
-      drawPillar(x+w-WALL,y+h-WALL,WALL,WALL);
-    }
-
-    function drawFloor(fx,fy,fw,fh){
-      const TW=40,TH=40;
-      for(let ty=0;ty<fh;ty+=TH){
-        for(let tx=0;tx<fw;tx+=TW){
-          const even=((Math.floor(tx/TW)+Math.floor(ty/TH))%2===0);
-          ctx.fillStyle=even?'#3a2810':'#321f08';
-          ctx.fillRect(fx+tx,fy+ty,Math.min(TW,fw-tx),Math.min(TH,fh-ty));
-        }
-      }
-      drawStains(fx,fy,fw,fh);
-      ctx.strokeStyle='rgba(0,0,0,0.35)';ctx.lineWidth=0.5;
-      for(let ty=0;ty<=fh;ty+=TH){ctx.beginPath();ctx.moveTo(fx,fy+ty);ctx.lineTo(fx+fw,fy+ty);ctx.stroke();}
-      for(let tx=0;tx<=fw;tx+=TW){ctx.beginPath();ctx.moveTo(fx+tx,fy);ctx.lineTo(fx+tx,fy+fh);ctx.stroke();}
-    }
-
-    function drawStains(fx,fy,fw,fh){
-      const stains=[
-        {rx:0.15,ry:0.2,rs:22},{rx:0.5,ry:0.4,rs:16},
-        {rx:0.75,ry:0.7,rs:28},{rx:0.3,ry:0.8,rs:14},
-        {rx:0.65,ry:0.15,rs:20},{rx:0.85,ry:0.5,rs:12},
-      ];
-      for(const s of stains){
-        const sx=fx+fw*s.rx, sy=fy+fh*s.ry;
-        if(sx<fx||sx>fx+fw||sy<fy||sy>fy+fh)continue;
-        ctx.save();
-        ctx.globalAlpha=0.18;
-        ctx.fillStyle='#8b0000';
-        ctx.beginPath();
-        ctx.ellipse(sx,sy,s.rs,s.rs*0.6,0.8,0,Math.PI*2);
-        ctx.fill();
-        ctx.beginPath();ctx.ellipse(sx+s.rs*0.6,sy-s.rs*0.3,s.rs*0.3,s.rs*0.15,0.5,0,Math.PI*2);ctx.fill();
-        ctx.restore();
-      }
-    }
-
-    function drawWallTop(wx,wy,ww,wh){
-      const BW=48,BH=wh;
-      for(let bx=0;bx<ww;bx+=BW){
-        const bw=Math.min(BW,ww-bx);
-        ctx.fillStyle='#5a3f20';
-        ctx.fillRect(wx+bx,wy,bw,BH);
-        ctx.strokeStyle='#3a2510';ctx.lineWidth=1;
-        ctx.strokeRect(wx+bx+1,wy+1,bw-2,BH-2);
-        ctx.fillStyle='rgba(255,200,100,0.06)';
-        ctx.fillRect(wx+bx,wy,bw,4);
-      }
-      ctx.fillStyle='rgba(0,0,0,0.4)';
-      ctx.fillRect(wx,wy+wh-6,ww,6);
-    }
-
-    function drawWallSide(wx,wy,ww,wh){
-      const BH=32;
-      for(let by=0;by<wh;by+=BH){
-        const bh=Math.min(BH,wh-by);
-        ctx.fillStyle='#4a3218';
-        ctx.fillRect(wx,wy+by,ww,bh);
-        ctx.strokeStyle='#2a1c08';ctx.lineWidth=0.8;
-        ctx.strokeRect(wx+1,wy+by+1,ww-2,bh-2);
-      }
-      const grd=ctx.createLinearGradient(wx,0,wx+ww,0);
-      grd.addColorStop(0,'rgba(0,0,0,0.4)');grd.addColorStop(1,'rgba(0,0,0,0.05)');
-      ctx.fillStyle=grd;ctx.fillRect(wx,wy,ww,wh);
-    }
-
-    function drawPillar(px,py,pw,ph){
-      ctx.fillStyle='#3a2810';
-      ctx.fillRect(px,py,pw,ph);
-      ctx.strokeStyle='#2a1c08';ctx.lineWidth=1;
-      ctx.strokeRect(px+2,py+2,pw-4,ph-4);
-      ctx.fillStyle='rgba(0,0,0,0.4)';
-      ctx.fillRect(px,py,pw,4);ctx.fillRect(px,py,4,ph);
-    }
-
-    function drawCorridor(x1,y1,x2,y2,cw,ch){
-      const fx=Math.min(x1,x2), fy=y1-ch/2;
-      const fw=Math.abs(x2-x1), fh=ch;
-      drawFloor(fx,fy+WALL,fw,fh-WALL*2);
-      drawWallTop(fx,fy,fw,WALL);
-      drawWallTop(fx,fy+fh-WALL,fw,WALL);
-    }
-
-    function drawCorrider2(x1,y1,x2,y2,cw,ch){
-      const fx=x1-cw/2, fy=Math.min(y1,y2);
-      const fw=cw, fh=Math.abs(y2-y1);
-      drawFloor(fx+WALL,fy,fw-WALL*2,fh);
-      drawWallSide(fx,fy,WALL,fh);
-      drawWallSide(fx+fw-WALL,fy,WALL,fh);
-    }
-
-    function drawDecorations(){
-      drawTorch(130,220); drawTorch(530,220);
-      drawTorch(130,510); drawTorch(530,510);
-      drawTorch(690,145); drawTorch(930,145);
-      drawTorch(690,360);
-      drawSkull(190,510); drawSkull(460,520);
-      drawBarrel(200,700); drawBarrel(225,715); drawBarrel(430,700);
-    }
-
-    function drawTorch(tx,ty){
-      const t=Date.now();
-      const flicker=Math.sin(t/180+tx)*2.5+Math.sin(t/120+ty)*1.5;
-      ctx.fillStyle='#553322';ctx.fillRect(tx-2,ty,4,18);
-      ctx.save();ctx.globalAlpha=0.15;
-      ctx.fillStyle='#ff8800';
-      ctx.beginPath();ctx.ellipse(tx,ty-2,18+flicker,22+flicker,0,0,Math.PI*2);ctx.fill();
-      ctx.restore();
-      ctx.fillStyle='#cc4400';
-      ctx.beginPath();ctx.ellipse(tx,ty-4,5+flicker*0.4,8+flicker*0.6,0,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#ffaa00';
-      ctx.beginPath();ctx.ellipse(tx,ty-3,3,5+flicker*0.4,0,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#ffff88';
-      ctx.beginPath();ctx.ellipse(tx,ty-2,1.5,3,0,0,Math.PI*2);ctx.fill();
-    }
-
-    function drawSkull(sx,sy){
-      ctx.save();ctx.globalAlpha=0.5;
-      ctx.fillStyle='#d4c4a0';
-      ctx.beginPath();ctx.ellipse(sx,sy,8,7,0,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#1a1008';
-      ctx.beginPath();ctx.ellipse(sx-3,sy+1,2,2.5,0,0,Math.PI*2);ctx.fill();
-      ctx.beginPath();ctx.ellipse(sx+3,sy+1,2,2.5,0,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#c8b890';ctx.globalAlpha=0.4;
-      ctx.fillRect(sx-12,sy+4,24,4);
-      ctx.fillRect(sx-8,sy+8,16,4);
-      ctx.restore();
-    }
-
-    function drawBarrel(bx,by){
-      ctx.fillStyle='#553322';ctx.fillRect(bx-9,by-16,18,20);
-      ctx.strokeStyle='#8B6622';ctx.lineWidth=2;
-      ctx.strokeRect(bx-10,by-18,20,3);
-      ctx.strokeRect(bx-10,by-8,20,3);
-      ctx.strokeRect(bx-10,by+1,20,4);
-      ctx.fillStyle='#442211';ctx.fillRect(bx-9,by+2,18,2);
-    }
-
-    // ─── 法杖（長者手持，2.5D 木質＋發光寶珠）───
-    function drawStaff(sx,ny){
-      // 木杖主體
-      ctx.strokeStyle='#6a4828';ctx.lineWidth=4;ctx.lineCap='round';
-      ctx.beginPath();ctx.moveTo(sx,ny+36);ctx.lineTo(sx-4,ny-34);ctx.stroke();
-      ctx.strokeStyle='#9a7848';ctx.lineWidth=1.4;
-      ctx.beginPath();ctx.moveTo(sx-1,ny+34);ctx.lineTo(sx-5,ny-32);ctx.stroke();
-      // 杖頭環抱寶珠的爪
-      ctx.strokeStyle='#5a3a1c';ctx.lineWidth=3;
-      ctx.beginPath();ctx.arc(sx-4,ny-36,6.5,Math.PI*0.15,Math.PI*1.55);ctx.stroke();
-      // 發光寶珠（脈動）
-      const t=Date.now();const pulse=Math.sin(t/420)*0.3+1;
-      ctx.save();
-      ctx.shadowColor='#5ab0ff';ctx.shadowBlur=15*pulse;
-      ctx.fillStyle='#bfe4ff';
-      ctx.beginPath();ctx.arc(sx-4,ny-39,5.6,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#ffffff';
-      ctx.beginPath();ctx.arc(sx-5.5,ny-40.5,2,0,Math.PI*2);ctx.fill();
-      ctx.restore();
-      ctx.lineCap='butt';
-    }
-
-    function drawNPC(nx,ny){
-      ctx.save();
-      // 落地陰影
-      ctx.globalAlpha=0.32;ctx.fillStyle='#000';
-      ctx.beginPath();ctx.ellipse(nx,ny+36,18,6,0,0,Math.PI*2);ctx.fill();
-      ctx.globalAlpha=1;
-
-      // 法杖（畫在身體後方，杖頂寶珠高於頭部）
-      drawStaff(nx-16,ny);
-
-      // 長袍（飄逸長擺，2.5D 漸層）
-      const robe=ctx.createLinearGradient(nx-16,ny,nx+16,ny+40);
-      robe.addColorStop(0,'#4a2d5a');robe.addColorStop(0.5,'#3a2348');robe.addColorStop(1,'#221230');
-      ctx.fillStyle=robe;
-      ctx.beginPath();
-      ctx.moveTo(nx-12,ny+2);ctx.lineTo(nx+12,ny+2);
-      ctx.lineTo(nx+16,ny+38);ctx.lineTo(nx-16,ny+38);ctx.closePath();ctx.fill();
-      // 袍褶陰影
-      ctx.strokeStyle='rgba(0,0,0,0.35)';ctx.lineWidth=1.5;
-      ctx.beginPath();ctx.moveTo(nx-4,ny+6);ctx.lineTo(nx-6,ny+37);ctx.stroke();
-      ctx.beginPath();ctx.moveTo(nx+4,ny+6);ctx.lineTo(nx+6,ny+37);ctx.stroke();
-      // 金色下襬
-      ctx.fillStyle='#c8a84b';ctx.fillRect(nx-16,ny+35,32,3);
-      // 肩部斗篷
-      ctx.fillStyle='#5a3868';
-      ctx.beginPath();ctx.moveTo(nx-13,ny+5);ctx.lineTo(nx+13,ny+5);ctx.lineTo(nx+10,ny-6);ctx.lineTo(nx-10,ny-6);ctx.closePath();ctx.fill();
-      // 腰帶
-      ctx.fillStyle='#a8842c';ctx.fillRect(nx-12,ny+11,24,3);
-
-      // 兜帽（後方）
-      ctx.fillStyle='#3a2348';ctx.beginPath();ctx.arc(nx,ny-11,12,0,Math.PI*2);ctx.fill();
-      // 臉
-      ctx.fillStyle='#d8b088';ctx.beginPath();ctx.arc(nx,ny-9,8.5,0,Math.PI*2);ctx.fill();
-      // 兜帽（前緣＋尖頂）
-      ctx.fillStyle='#4a2d5a';
-      ctx.beginPath();ctx.arc(nx,ny-13,11,Math.PI,0);ctx.fill();
-      ctx.fillRect(nx-12,ny-13,3.5,11);ctx.fillRect(nx+8.5,ny-13,3.5,11);
-      ctx.beginPath();ctx.moveTo(nx-9,ny-20);ctx.lineTo(nx+1,ny-31);ctx.lineTo(nx+6,ny-17);ctx.closePath();ctx.fill();
-
-      // 長白鬍
-      ctx.fillStyle='#ece8dc';
-      ctx.beginPath();
-      ctx.moveTo(nx-7,ny-7);
-      ctx.quadraticCurveTo(nx-9,ny+8,nx,ny+17);
-      ctx.quadraticCurveTo(nx+9,ny+8,nx+7,ny-7);
-      ctx.closePath();ctx.fill();
-      // 眼睛
-      ctx.fillStyle='#3a2410';
-      ctx.beginPath();ctx.arc(nx-3.2,ny-10,1.4,0,Math.PI*2);ctx.fill();
-      ctx.beginPath();ctx.arc(nx+3.2,ny-10,1.4,0,Math.PI*2);ctx.fill();
-      // 白眉
-      ctx.strokeStyle='#ece8dc';ctx.lineWidth=2;ctx.lineCap='round';
-      ctx.beginPath();ctx.moveTo(nx-6,ny-12.5);ctx.lineTo(nx-1,ny-12);ctx.stroke();
-      ctx.beginPath();ctx.moveTo(nx+1,ny-12);ctx.lineTo(nx+6,ny-12.5);ctx.stroke();
-      ctx.lineCap='butt';
-      // 鼻
-      ctx.strokeStyle='rgba(120,80,50,0.6)';ctx.lineWidth=1;
-      ctx.beginPath();ctx.moveTo(nx,ny-9);ctx.lineTo(nx,ny-6);ctx.stroke();
-      // 握杖的手
-      ctx.fillStyle='#d8b088';ctx.beginPath();ctx.arc(nx-14,ny+8,2.6,0,Math.PI*2);ctx.fill();
-
-      ctx.fillStyle='#fff';ctx.font='bold 12px Noto Serif TC,serif';ctx.textAlign='center';
-      ctx.fillText('歐林',nx,ny-34);
-      ctx.fillStyle='#ccc';ctx.font='10px Noto Serif TC,serif';
-      ctx.fillText('【雜貨商】',nx,ny-22);
-      if(!dialog.show&&!ui.shop){
-        const dist=Math.hypot(wx-OLIN_X,wy-OLIN_Y);
-        if(dist<200){
-          const bob=Math.sin(Date.now()/500)*3;
-          ctx.fillStyle='rgba(200,160,50,0.92)';
-          ctx.beginPath();
-          ctx.roundRect(nx-28,ny-70+bob,56,18,4);ctx.fill();
-          ctx.beginPath();ctx.moveTo(nx-6,ny-52+bob);ctx.lineTo(nx+6,ny-52+bob);ctx.lineTo(nx,ny-46+bob);ctx.closePath();ctx.fill();
-          ctx.fillStyle='#1a0800';ctx.font='10px Noto Serif TC,serif';ctx.textAlign='center';
-          ctx.fillText('點擊交談',nx,ny-58+bob);
-        }
-      }
-      ctx.restore();
-    }
-
-    // ─── 書櫃（歐林後方，2.5D 立體木櫃）───
-    function drawBookshelf(cx,baseY){
-      const w=176,h=92,depth=15;
-      const left=cx-w/2,top=baseY-h;
-      ctx.save();
-      // 地面陰影
-      ctx.globalAlpha=0.3;ctx.fillStyle='#000';
-      ctx.beginPath();ctx.ellipse(cx,baseY+3,w/2+8,12,0,0,Math.PI*2);ctx.fill();
-      ctx.globalAlpha=1;
-      // 頂面（斜投影）
-      ctx.fillStyle='#6b4a24';
-      ctx.beginPath();ctx.moveTo(left,top);ctx.lineTo(left+depth,top-depth);
-      ctx.lineTo(left+w+depth,top-depth);ctx.lineTo(left+w,top);ctx.closePath();ctx.fill();
-      // 右側面
-      ctx.fillStyle='#33200d';
-      ctx.beginPath();ctx.moveTo(left+w,top);ctx.lineTo(left+w+depth,top-depth);
-      ctx.lineTo(left+w+depth,baseY-depth);ctx.lineTo(left+w,baseY);ctx.closePath();ctx.fill();
-      // 正面櫃身
-      const fg=ctx.createLinearGradient(left,top,left,baseY);
-      fg.addColorStop(0,'#5a3a1c');fg.addColorStop(1,'#402710');
-      ctx.fillStyle=fg;ctx.fillRect(left,top,w,h);
-      ctx.strokeStyle='#241608';ctx.lineWidth=2;ctx.strokeRect(left,top,w,h);
-      // 層板＋書本
-      const shelves=3,pad=8;
-      const innerW=w-pad*2,shelfH=(h-pad*2)/shelves;
-      const cols=['#8a2626','#26607e','#2e7030','#7a521c','#5e2a72','#86671c','#2a4e72','#702a40','#3a6e52'];
-      for(let s=0;s<shelves;s++){
-        const sy=top+pad+s*shelfH;
-        // 層板內凹
-        ctx.fillStyle='rgba(0,0,0,0.35)';ctx.fillRect(left+pad,sy,innerW,shelfH-3);
-        let bx=left+pad+2,ci=s*3;
-        while(bx<left+pad+innerW-5){
-          const bw=6+Math.floor((Math.sin(bx*1.7+s*2)*0.5+0.5)*6);
-          const bh=shelfH-7-((Math.floor(bx)+s)%3)*2;
-          ctx.fillStyle=cols[ci%cols.length];
-          ctx.fillRect(bx,sy+(shelfH-3)-bh,bw,bh);
-          ctx.fillStyle='rgba(255,255,255,0.13)';ctx.fillRect(bx,sy+(shelfH-3)-bh,bw,2);
-          ctx.fillStyle='rgba(0,0,0,0.25)';ctx.fillRect(bx+bw-1,sy+(shelfH-3)-bh,1,bh);
-          bx+=bw+1.5;ci++;
-        }
-        // 木層板
-        ctx.fillStyle='#5a3a1c';ctx.fillRect(left+pad,sy+shelfH-3,innerW,3);
-      }
-      ctx.restore();
-    }
-
-    // ─── 書架（歐林前方，斜面講台＋翻開的書）───
-    function drawBookStand(cx,baseY){
-      ctx.save();
-      // 陰影
-      ctx.globalAlpha=0.3;ctx.fillStyle='#000';
-      ctx.beginPath();ctx.ellipse(cx,baseY+2,28,8,0,0,Math.PI*2);ctx.fill();
-      ctx.globalAlpha=1;
-      // 立柱
-      ctx.fillStyle='#46290f';ctx.fillRect(cx-5,baseY-30,10,30);
-      ctx.fillStyle='#5a3a1c';ctx.fillRect(cx-5,baseY-30,4,30);
-      // 底座
-      ctx.fillStyle='#33200d';ctx.beginPath();ctx.ellipse(cx,baseY,22,7,0,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#4a3018';ctx.beginPath();ctx.ellipse(cx,baseY-2,19,5.5,0,0,Math.PI*2);ctx.fill();
-      const topY=baseY-30;
-      // 斜面桌板（2.5D）
-      ctx.fillStyle='#5a3a1c';
-      ctx.beginPath();ctx.moveTo(cx-30,topY-6);ctx.lineTo(cx+30,topY-6);
-      ctx.lineTo(cx+34,topY+9);ctx.lineTo(cx-34,topY+9);ctx.closePath();ctx.fill();
-      ctx.strokeStyle='#241608';ctx.lineWidth=1.5;ctx.stroke();
-      // 翻開的書
-      ctx.fillStyle='#ece4c8';
-      ctx.beginPath();ctx.moveTo(cx-27,topY-2);ctx.lineTo(cx-1,topY-5);ctx.lineTo(cx-1,topY+5);ctx.lineTo(cx-29,topY+8);ctx.closePath();ctx.fill();
-      ctx.beginPath();ctx.moveTo(cx+1,topY-5);ctx.lineTo(cx+27,topY-2);ctx.lineTo(cx+29,topY+8);ctx.lineTo(cx+1,topY+5);ctx.closePath();ctx.fill();
-      // 書脊
-      ctx.fillStyle='#9a7430';ctx.fillRect(cx-1.5,topY-5,3,11);
-      // 文字行
-      ctx.strokeStyle='rgba(70,50,25,0.55)';ctx.lineWidth=0.7;
-      for(let i=0;i<3;i++){
-        const ly=topY-1+i*3;
-        ctx.beginPath();ctx.moveTo(cx-23,ly);ctx.lineTo(cx-5,ly-1);ctx.stroke();
-        ctx.beginPath();ctx.moveTo(cx+5,ly-1);ctx.lineTo(cx+23,ly);ctx.stroke();
-      }
-      // 微弱魔法光暈
-      const t=Date.now();const gp=Math.sin(t/600)*0.06+0.16;
-      ctx.globalAlpha=gp;ctx.fillStyle='#ffd060';
-      ctx.beginPath();ctx.ellipse(cx,topY,30,15,0,0,Math.PI*2);ctx.fill();
-      ctx.restore();
-    }
-
-    // ─── 2.5D 景深／氛圍暗角 ───
-    function drawDepthOverlay(W,H){
-      const g=ctx.createRadialGradient(W/2,H*0.46,Math.min(W,H)*0.28,W/2,H/2,Math.max(W,H)*0.72);
-      g.addColorStop(0,'rgba(0,0,0,0)');
-      g.addColorStop(0.7,'rgba(0,0,0,0.22)');
-      g.addColorStop(1,'rgba(0,0,0,0.58)');
-      ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
-    }
-
-    function drawPlayer(px,py){
-      ctx.save();
-      const legOff=[[-6,0],[6,0],[-6,4],[6,-4]][walkFrame]||[0,0];
-      ctx.globalAlpha=0.3;ctx.fillStyle='#000';
-      ctx.beginPath();ctx.ellipse(px,py+34,12,4,0,0,Math.PI*2);ctx.fill();
-      ctx.globalAlpha=1;
-      ctx.fillStyle='#2244aa';
-      ctx.fillRect(px-7+legOff[0]*0.5,py+20,6,16);
-      ctx.fillRect(px+1+legOff[1]*0.5,py+20,6,16);
-      ctx.fillStyle='#110800';
-      ctx.fillRect(px-8+legOff[0]*0.5,py+33,7,5);
-      ctx.fillRect(px+0+legOff[1]*0.5,py+33,7,5);
-      ctx.fillStyle='#992211';ctx.fillRect(px-10,py,20,22);
-      ctx.fillStyle='#bb3322';ctx.fillRect(px-8,py+2,8,10);
-      ctx.fillStyle='#888';ctx.fillRect(px-13,py-2,6,8);ctx.fillRect(px+7,py-2,6,8);
-      ctx.fillStyle='#d4a060';ctx.beginPath();ctx.arc(px,py-4,10,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#666655';ctx.fillRect(px-10,py-12,20,10);
-      ctx.beginPath();ctx.arc(px,py-12,10,Math.PI,0);ctx.fill();
-      ctx.fillStyle='#888877';ctx.fillRect(px-2,py-18,4,8);
-      ctx.fillStyle='#110800';ctx.beginPath();ctx.arc(px-3,py-4,1.5,0,Math.PI*2);ctx.fill();
-      ctx.beginPath();ctx.arc(px+3,py-4,1.5,0,Math.PI*2);ctx.fill();
-      ctx.save();ctx.translate(px+12,py+8);ctx.rotate(-0.5+Math.sin(walkTick*0.3)*0.15);
-      ctx.strokeStyle='#bbb';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,20);ctx.lineTo(4,-18);ctx.stroke();
-      ctx.fillStyle='#ddd';ctx.fillRect(2,-22,4,6);
-      ctx.fillStyle='#aaa';ctx.fillRect(0,-16,8,3);
-      ctx.restore();
-      ctx.fillStyle='#88ccff';ctx.font='bold 11px Noto Serif TC,serif';ctx.textAlign='center';
-      ctx.fillText(charName.value||'冒險者',px,py-20);
-      ctx.restore();
-    }
-
-    // 白線（剩餘航點）＋ 紅點（終點）
-    function drawNavPath(){
-      if(!nav.active||!nav.path.length)return;
-      ctx.save();
-      ctx.strokeStyle='rgba(255,255,255,0.85)';ctx.lineWidth=3;ctx.lineCap='round';
-      ctx.setLineDash([10,8]);
-      ctx.beginPath();ctx.moveTo(wx,wy);
-      for(let i=nav.idx;i<nav.path.length;i++)ctx.lineTo(nav.path[i].x,nav.path[i].y);
-      ctx.stroke();ctx.setLineDash([]);
-      const t=nav.target;
-      if(t){
-        ctx.fillStyle='rgba(255,40,40,0.9)';
-        ctx.beginPath();ctx.arc(t.x,t.y,6,0,Math.PI*2);ctx.fill();
-        ctx.strokeStyle='rgba(255,255,255,0.9)';ctx.lineWidth=2;
-        ctx.beginPath();ctx.arc(t.x,t.y,11,0,Math.PI*2);ctx.stroke();
-      }
-      ctx.restore();
-    }
-
-    function drawMinimap(W,H){
-      const MX=W-130,MY=50,MW=120,MH=100,SCALE=0.08;
-      ctx.fillStyle='rgba(0,0,0,0.7)';ctx.fillRect(MX-2,MY-2,MW+4,MH+24);
-      ctx.strokeStyle='#5a3a1a';ctx.lineWidth=1;ctx.strokeRect(MX-2,MY-2,MW+4,MH+24);
-      ctx.fillStyle='rgba(255,255,255,0.06)';
-      const ox=MX+MW/2-wx*SCALE, oy=MY+MH/2-wy*SCALE;
-      for(const r of rooms){
-        ctx.fillStyle='rgba(80,50,20,0.7)';
-        ctx.fillRect(ox+r.x*SCALE,oy+r.y*SCALE,r.w*SCALE,r.h*SCALE);
-        ctx.strokeStyle='#5a3a1a';ctx.lineWidth=0.5;
-        ctx.strokeRect(ox+r.x*SCALE,oy+r.y*SCALE,r.w*SCALE,r.h*SCALE);
-      }
-      ctx.fillStyle='#4488ff';
-      ctx.beginPath();ctx.arc(ox+wx*SCALE,oy+wy*SCALE,3,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#ffcc00';
-      ctx.beginPath();ctx.arc(ox+OLIN_X*SCALE,oy+OLIN_Y*SCALE,3,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#888';ctx.font='9px serif';ctx.textAlign='left';
-      ctx.fillText('小地圖',MX,MY+MH+12);
-      ctx.fillStyle='#4488ff';ctx.fillRect(MX,MY+MH+14,6,6);ctx.fillStyle='#aaa';ctx.font='9px serif';ctx.fillText(' 你',MX+5,MY+MH+20);
-      ctx.fillStyle='#ffcc00';ctx.fillRect(MX+32,MY+MH+14,6,6);ctx.fillStyle='#aaa';ctx.fillText(' 歐林',MX+37,MY+MH+20);
-    }
-
-    function drawHints(W,H){
-      ctx.font='14px Noto Serif TC,serif';ctx.textAlign='left';
-      const dist=Math.round(Math.hypot(wx-OLIN_X,wy-OLIN_Y));
-      const inRange=dist<=108;
-      const lines=['WASD / 方向鍵：移動','靠近歐林3格內點擊交談',`歐林距離: ${dist}px ${inRange?'✓可交談':'(需靠近)'}`];
-      let bw=0;for(const l of lines)bw=Math.max(bw,ctx.measureText(l).width);
-      bw=Math.round(bw)+24;const bh=24+(lines.length-1)*22+6;
-      // 預設置於左上角（與 HUD 留間距）；與歐林對話時往右平移，避免被對話框遮住，關閉對話自動跳回
-      const inDialog=dialog.show;
-      const bx=inDialog?430:20,by=56;
-      ctx.fillStyle='rgba(0,0,0,0.55)';
-      ctx.fillRect(bx,by,bw,bh);
-      ctx.strokeStyle='#3a2510';ctx.lineWidth=1;ctx.strokeRect(bx,by,bw,bh);
-      const tx=bx+12;
-      // 依行數動態繪製；最後一行（歐林距離／狀態）依是否可交談上色，其餘為灰色
-      for(let i=0;i<lines.length;i++){
-        ctx.fillStyle=(i===lines.length-1)?(inRange?'#44cc44':'#cc8844'):'#907050';
-        ctx.fillText(lines[i],tx,by+24+i*22);
-      }
-    }
-
     // roundRect polyfill for older browsers
     if (!CanvasRenderingContext2D.prototype.roundRect) {
       CanvasRenderingContext2D.prototype.roundRect = function(x,y,w,h,r) {
@@ -2465,6 +1898,118 @@ createApp({
         return this;
       };
     }
+
+    // ══════════════════════════════════════════
+    //  CANVAS / 場景：Babylon 2.5D 等角呈現層
+    // ══════════════════════════════════════════
+    let sceneApi=null;
+
+    // ─── 小地圖：每幀重繪牆/地板 + 歐林(金) + 玩家(綠) + 導航終點 ───
+    function drawMinimap(){
+      const cv=miniCanvas.value; if(!cv) return;
+      const g=cv.getContext('2d'); if(!g) return;
+      const {cols,rows}=mapSize();
+      const cw=cv.width/cols, chh=cv.height/rows;
+      g.clearRect(0,0,cv.width,cv.height);
+      g.fillStyle='#0c0905'; g.fillRect(0,0,cv.width,cv.height);
+      for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+        const ch=cellAt(c,r); let col=null;
+        if(ch==='#') col='#5a4226';
+        else if(ch==='P') col='#6e5230';
+        else if(ch==='t') col='#d98030';
+        else if(ch==='C') col='#e06a1e';
+        else if(ch==='.'||ch==='S'||ch==='O') col='#241a0e';
+        if(col){ g.fillStyle=col; g.fillRect(c*cw,r*chh,Math.ceil(cw),Math.ceil(chh)); }
+      }
+      const dot=(px,py,r,fill,stroke)=>{
+        g.beginPath(); g.arc(px,py,r,0,Math.PI*2);
+        g.fillStyle=fill; g.fill();
+        if(stroke){ g.lineWidth=1.5; g.strokeStyle=stroke; g.stroke(); }
+      };
+      const label=(px,py,text,color)=>{
+        g.font='bold 9px sans-serif'; g.textAlign='center'; g.textBaseline='bottom';
+        g.lineWidth=3; g.strokeStyle='rgba(0,0,0,0.95)'; g.strokeText(text,px,py);
+        g.fillStyle=color; g.fillText(text,px,py);
+      };
+      const r=Math.max(3,cw*0.55);
+      // 導航終點（白色，閃爍標記 + 文字）
+      if(nav.active&&nav.target){
+        const tx=nav.target.x/TILE_PX*cw, ty=nav.target.y/TILE_PX*chh;
+        dot(tx,ty,r*0.9,'#ffffff','#000'); label(tx,ty-r,'目的地','#ffffff');
+      }
+      // 歐林（金）
+      const ox=OLIN_X/TILE_PX*cw, oy=OLIN_Y/TILE_PX*chh;
+      dot(ox,oy,r,'#f0d060','#3a2a00'); label(ox,oy-r-1,'歐林','#ffe27a');
+      // 玩家（綠）
+      const wxp=wx/TILE_PX*cw, wyp=wy/TILE_PX*chh;
+      dot(wxp,wyp,r,'#7fff7f','#0a3a0a'); label(wxp,wyp-r-1,'你','#aaffaa');
+    }
+
+    function initScene(){
+      const c=canvas.value; if(!c)return;
+      const cfg=JSON.parse(localStorage.getItem('lineage_config')||'{}');
+      sceneApi=createScene(c, {
+        cameraMode: cfg.cameraMode==='rotatable' ? 'rotatable' : 'fixed',
+        brightness: (typeof cfg.brightness==='number') ? cfg.brightness : 70,
+        onGroundClick: (x,y)=>{
+          if(ui.shop||ui.enhance||dialog.show)return;
+          // 點在歐林可交談範圍內且玩家已靠近 → 交談；否則導航
+          if(Math.hypot(wx-OLIN_X,wy-OLIN_Y)<=108 && Math.hypot(x-OLIN_X,y-OLIN_Y)<=60){ talkToOlin(); return; }
+          startNavTo(x,y);
+        },
+      });
+      sceneApi.setOlin(OLIN_X, OLIN_Y);
+
+      // 鍵盤 / 滑鼠輸入
+      window.addEventListener('keydown',e=>{
+        keys[e.key]=true;
+        if(e.key==='i'||e.key==='I')ui.inventory=!ui.inventory;
+        if(e.key==='Escape'){
+          if(hammerMode.active){cancelHammer();return;}
+          dialog.show=false;ui.shop=false;ui.enhance=false;
+        }
+      });
+      window.addEventListener('keyup',e=>keys[e.key]=false);
+      window.addEventListener('mousemove',e=>{ cursorPos.x=e.clientX; cursorPos.y=e.clientY; cursorPos.visible=true; });
+      window.addEventListener('mouseleave',()=>{cursorPos.visible=false;});
+
+      requestAnimationFrame(logicLoop);
+    }
+    // 每幀：更新邏輯座標(wx,wy)，把位置/移動狀態餵給 Babylon 場景
+    function logicLoop(){
+      let moving=false;
+      if(!ui.shop&&!ui.enhance&&!dialog.show){
+        const pressing=keys['ArrowLeft']||keys['a']||keys['ArrowRight']||keys['d']
+                     ||keys['ArrowUp']||keys['w']||keys['ArrowDown']||keys['s'];
+        if(nav.active&&pressing)stopNav('⏸ 已手動中斷導航');
+        if(nav.active){ navStep(); moving=nav.active; }
+        else {
+          let dx=0,dy=0;
+          if(keys['ArrowLeft']||keys['a'])dx=-SPEED;
+          if(keys['ArrowRight']||keys['d'])dx=SPEED;
+          if(keys['ArrowUp']||keys['w'])dy=-SPEED;
+          if(keys['ArrowDown']||keys['s'])dy=SPEED;
+          if(dx!==0&&dy!==0){dx*=0.707;dy*=0.707;}
+          const nx=wx+dx, ny=wy+dy;
+          if(walkable(nx,wy-16)||walkable(nx,wy+16)) wx=nx;
+          if(walkable(wx-16,ny)||walkable(wx+16,ny)) wy=ny;
+          moving=!!(dx||dy);
+          if(moving){walkTick++;}else{walkTick=0;}
+        }
+      }
+      if(sceneApi){
+        sceneApi.setPlayer(wx,wy,moving);
+        // 導航虛線/箭頭：狀態改變時才重建（避免每幀重繪）
+        const sig = nav.active ? nav.idx+'/'+nav.path.length : 'off';
+        if(sig!==_navSig){
+          _navSig=sig;
+          sceneApi.setNavPath(nav.active ? [{x:wx,y:wy},...nav.path.slice(nav.idx)] : null);
+        }
+      }
+      drawMinimap();
+      requestAnimationFrame(logicLoop);
+    }
+    let _navSig='';
 
     // ══════════════════════════════════════════
     //  進場：驗證登入 + 載入存檔
@@ -2488,7 +2033,14 @@ createApp({
       loadConfigFrom(JSON.parse(localStorage.getItem('lineage_config')||'null'));
 
       ready.value=true;
-      nextTick(()=>initCanvas());
+      nextTick(()=>{
+        initScene();
+        // 地圖尺寸一變（放大／縮小／視窗 resize 改變 26vw），即時重算背包定位
+        if(miniWrap.value && window.ResizeObserver){
+          new ResizeObserver(()=>measureMinimap()).observe(miniWrap.value);
+        }
+        measureMinimap();
+      });
 
       addMsg(`系統：歡迎回來，${charName.value}！持有 ${fmt(gold.value)} 天幣。`,'gold');
       addMsg('提示：WASD移動 │ 靠近歐林商人點擊交談 │ I=背包 │ 右側🎒圖示=背包 │ Esc=關閉','blue');
@@ -2504,7 +2056,8 @@ createApp({
     });
 
     return {
-      ready,charName,gold,canvas,msgLog,
+      ready,charName,gold,canvas,msgLog,miniCanvas,minimap,miniWrap,
+      bagToggleStyle,invPanelStyle,
       messages,shopTab,TABS,shopItems,selSlot,selItem,inventory,
       ui,dialog,eff,toast,enhTgt,nav,pauseNav,
       buyModal,hammerMode,result,cursorPos,
@@ -2523,7 +2076,7 @@ createApp({
       DEFAULT_WEAPON_LIST,DEFAULT_ARMOR_LIST,
       subPanel,closeSubPanel,
       cpTwd,cpPresets,cpCoins,doCpTopup,
-      subSet,subSetSave,subSetReset,
+      subSet,subSetSave,subSetReset,applyBrightness,
       refineData,refineJsonLoaded,rtClamp,rtClass,
     };
   }
