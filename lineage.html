@@ -338,6 +338,32 @@ canvas{display:block;}
 }
 
 /* ===== 背包切換按鈕 ===== */
+.minimap{
+  position:absolute;top:48px;right:10px;z-index:20;pointer-events:none;
+  width:170px;
+  background:rgba(10,7,4,0.82);border:2px solid var(--border);
+  padding:3px;box-shadow:0 2px 10px rgba(0,0,0,0.6);
+  transition:width 0.18s ease;
+}
+.minimap.expanded{ width:26vw;min-width:300px; }
+.minimap-title{
+  color:var(--gold2);font-size:11px;font-weight:700;text-align:center;
+  padding:1px 0 3px 22px;letter-spacing:1px;
+}
+.minimap-cv{ display:block;width:100%;height:auto;image-rendering:pixelated;border:1px solid var(--border); }
+.minimap-zoom{
+  position:absolute;top:3px;left:5px;pointer-events:all;
+  background:rgba(10,7,4,0.85);border:1px solid var(--border);color:var(--gold2);
+  font-size:13px;line-height:1;padding:2px 5px;cursor:pointer;font-family:inherit;
+}
+.minimap-zoom:hover{ border-color:var(--gold);background:rgba(90,58,26,0.7); }
+.minimap-legend{
+  display:flex;flex-wrap:wrap;gap:2px 8px;padding:4px 2px 1px;
+}
+.minimap-legend span{ display:flex;align-items:center;gap:3px;color:var(--text);font-size:10px;line-height:1.3;white-space:nowrap; }
+.minimap-legend i{ width:9px;height:9px;display:inline-block;border-radius:2px;flex:none; }
+.minimap:not(.expanded) .minimap-legend{ font-size:9px; }
+.minimap:not(.expanded) .mm-more{ display:none; }
 .bag-toggle{
   position:absolute;top:192px;right:10px;
   width:40px;height:40px;
@@ -610,6 +636,23 @@ tr.sp-safe-row:hover td{background:rgba(20,60,20,0.3)!important;}
     :class="hammerMode.active ? 'hammer-'+hammerMode.target : ''"
     @keydown.esc="cancelHammer">
     <canvas id="gameCanvas" ref="canvas"></canvas>
+
+    <!-- 小地圖：玩家(綠)＋歐林(金)即時位置；右上角，可放大/縮小 -->
+    <div class="minimap" ref="miniWrap" :class="{expanded:minimap.expanded}">
+      <div class="minimap-title">📍 地圖</div>
+      <canvas ref="miniCanvas" class="minimap-cv" width="192" height="144"></canvas>
+      <button class="minimap-zoom" @click="minimap.expanded=!minimap.expanded"
+        :title="minimap.expanded?'縮小地圖':'放大地圖'">{{minimap.expanded?'🔍➖':'🔍➕'}}</button>
+      <div class="minimap-legend">
+        <span><i style="background:#7fff7f"></i>玩家(你)</span>
+        <span><i style="background:#f0d060"></i>歐林商人</span>
+        <span><i style="background:#e0762a"></i>火把/營火</span>
+        <span><i style="background:#7a5a30"></i>牆壁</span>
+        <span class="mm-more"><i style="background:#6e5230"></i>柱子</span>
+        <span class="mm-more"><i style="background:#ffffff;outline:1px solid #888"></i>目的地</span>
+      </div>
+    </div>
+
     <!-- 地圖導航橫幅（畫面正上方置中） -->
     <div v-if="nav.active" class="nav-banner">
       <span>🧭 地圖導航中…</span>
@@ -1017,10 +1060,10 @@ tr.sp-safe-row:hover td{background:rgba(20,60,20,0.3)!important;}
     </div>
 
     <!-- 背包切換按鈕（小地圖下方，開啟背包時隱藏） -->
-    <div v-if="!ui.inventory" class="bag-toggle" @click="ui.inventory=true" title="背包 (I)">🎒</div>
+    <div v-if="!ui.inventory" class="bag-toggle" :style="bagToggleStyle" @click="ui.inventory=true" title="背包 (I)">🎒</div>
 
     <!-- 背包 -->
-    <div v-if="ui.inventory" class="inventory-panel">
+    <div v-if="ui.inventory" class="inventory-panel" :style="invPanelStyle">
       <div class="panel-header">
         <span class="panel-title">背　包</span>
         <button class="panel-close" @click="closeInventory">✕</button>
@@ -1162,7 +1205,7 @@ tr.sp-safe-row:hover td{background:rgba(20,60,20,0.3)!important;}
 <script>
 // nav3d.js / scene3d.js are loaded as classic scripts above and expose globals,
 // so this page works over file:// (ES modules don't load from file://).
-const { findPath, canStep, walkable, findChar } = globalThis.Nav3D;
+const { findPath, canStep, walkable, findChar, cellAt, mapSize, TILE_PX } = globalThis.Nav3D;
 const { createScene } = globalThis.Scene3D;
 const {createApp,ref,reactive,computed,nextTick,onMounted,watch} = Vue;
 createApp({
@@ -1170,7 +1213,21 @@ createApp({
     // ─── 狀態 ───
     const ready=ref(false);
     const charName=ref(''), gold=ref(10000000);
-    const canvas=ref(null), msgLog=ref(null);
+    const canvas=ref(null), msgLog=ref(null), miniCanvas=ref(null);
+    const miniWrap=ref(null);
+    // belowY = 地圖實際底邊（px）；背包按鈕／背包面板的 top 跟著它走，放大縮小即時推開
+    const minimap=reactive({expanded:false, belowY:192});
+    // 量測地圖目前佔用高度，更新底邊 Y（含 8px 間距）
+    function measureMinimap(){
+      const el=miniWrap.value; if(!el) return;
+      minimap.belowY=el.offsetTop + el.offsetHeight + 8;
+    }
+    // 背包按鈕／背包面板的動態定位（緊貼地圖下緣，避免疊層覆蓋）
+    const bagToggleStyle=computed(()=>({ top:minimap.belowY + 'px' }));
+    const invPanelStyle=computed(()=>({
+      top:minimap.belowY + 'px',
+      maxHeight:`calc(100vh - ${minimap.belowY + 16}px)`
+    }));
     const messages=ref([]);
     const shopTab=ref('weapon');
     const selSlot=ref(null);
@@ -1846,6 +1903,48 @@ createApp({
     //  CANVAS / 場景：Babylon 2.5D 等角呈現層
     // ══════════════════════════════════════════
     let sceneApi=null;
+
+    // ─── 小地圖：每幀重繪牆/地板 + 歐林(金) + 玩家(綠) + 導航終點 ───
+    function drawMinimap(){
+      const cv=miniCanvas.value; if(!cv) return;
+      const g=cv.getContext('2d'); if(!g) return;
+      const {cols,rows}=mapSize();
+      const cw=cv.width/cols, chh=cv.height/rows;
+      g.clearRect(0,0,cv.width,cv.height);
+      g.fillStyle='#0c0905'; g.fillRect(0,0,cv.width,cv.height);
+      for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+        const ch=cellAt(c,r); let col=null;
+        if(ch==='#') col='#5a4226';
+        else if(ch==='P') col='#6e5230';
+        else if(ch==='t') col='#d98030';
+        else if(ch==='C') col='#e06a1e';
+        else if(ch==='.'||ch==='S'||ch==='O') col='#241a0e';
+        if(col){ g.fillStyle=col; g.fillRect(c*cw,r*chh,Math.ceil(cw),Math.ceil(chh)); }
+      }
+      const dot=(px,py,r,fill,stroke)=>{
+        g.beginPath(); g.arc(px,py,r,0,Math.PI*2);
+        g.fillStyle=fill; g.fill();
+        if(stroke){ g.lineWidth=1.5; g.strokeStyle=stroke; g.stroke(); }
+      };
+      const label=(px,py,text,color)=>{
+        g.font='bold 9px sans-serif'; g.textAlign='center'; g.textBaseline='bottom';
+        g.lineWidth=3; g.strokeStyle='rgba(0,0,0,0.95)'; g.strokeText(text,px,py);
+        g.fillStyle=color; g.fillText(text,px,py);
+      };
+      const r=Math.max(3,cw*0.55);
+      // 導航終點（白色，閃爍標記 + 文字）
+      if(nav.active&&nav.target){
+        const tx=nav.target.x/TILE_PX*cw, ty=nav.target.y/TILE_PX*chh;
+        dot(tx,ty,r*0.9,'#ffffff','#000'); label(tx,ty-r,'目的地','#ffffff');
+      }
+      // 歐林（金）
+      const ox=OLIN_X/TILE_PX*cw, oy=OLIN_Y/TILE_PX*chh;
+      dot(ox,oy,r,'#f0d060','#3a2a00'); label(ox,oy-r-1,'歐林','#ffe27a');
+      // 玩家（綠）
+      const wxp=wx/TILE_PX*cw, wyp=wy/TILE_PX*chh;
+      dot(wxp,wyp,r,'#7fff7f','#0a3a0a'); label(wxp,wyp-r-1,'你','#aaffaa');
+    }
+
     function initScene(){
       const c=canvas.value; if(!c)return;
       const cfg=JSON.parse(localStorage.getItem('lineage_config')||'{}');
@@ -1898,9 +1997,19 @@ createApp({
           if(moving){walkTick++;}else{walkTick=0;}
         }
       }
-      if(sceneApi)sceneApi.setPlayer(wx,wy,moving);
+      if(sceneApi){
+        sceneApi.setPlayer(wx,wy,moving);
+        // 導航虛線/箭頭：狀態改變時才重建（避免每幀重繪）
+        const sig = nav.active ? nav.idx+'/'+nav.path.length : 'off';
+        if(sig!==_navSig){
+          _navSig=sig;
+          sceneApi.setNavPath(nav.active ? [{x:wx,y:wy},...nav.path.slice(nav.idx)] : null);
+        }
+      }
+      drawMinimap();
       requestAnimationFrame(logicLoop);
     }
+    let _navSig='';
 
     // ══════════════════════════════════════════
     //  進場：驗證登入 + 載入存檔
@@ -1924,7 +2033,14 @@ createApp({
       loadConfigFrom(JSON.parse(localStorage.getItem('lineage_config')||'null'));
 
       ready.value=true;
-      nextTick(()=>initScene());
+      nextTick(()=>{
+        initScene();
+        // 地圖尺寸一變（放大／縮小／視窗 resize 改變 26vw），即時重算背包定位
+        if(miniWrap.value && window.ResizeObserver){
+          new ResizeObserver(()=>measureMinimap()).observe(miniWrap.value);
+        }
+        measureMinimap();
+      });
 
       addMsg(`系統：歡迎回來，${charName.value}！持有 ${fmt(gold.value)} 天幣。`,'gold');
       addMsg('提示：WASD移動 │ 靠近歐林商人點擊交談 │ I=背包 │ 右側🎒圖示=背包 │ Esc=關閉','blue');
@@ -1940,7 +2056,8 @@ createApp({
     });
 
     return {
-      ready,charName,gold,canvas,msgLog,
+      ready,charName,gold,canvas,msgLog,miniCanvas,minimap,miniWrap,
+      bagToggleStyle,invPanelStyle,
       messages,shopTab,TABS,shopItems,selSlot,selItem,inventory,
       ui,dialog,eff,toast,enhTgt,nav,pauseNav,
       buyModal,hammerMode,result,cursorPos,
