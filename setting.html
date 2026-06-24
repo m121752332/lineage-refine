@@ -239,7 +239,7 @@ html,body{width:100%;min-height:100%;background:#080503;font-family:'Noto Serif 
 </div>
 
 <script>
-const { createApp, ref, reactive, onMounted } = Vue;
+const { createApp, ref, reactive, onMounted, watch } = Vue;
 
 const DEF_WEAPON = [
   10000,20000,30000,40000,50000,60000,70000,
@@ -258,6 +258,14 @@ createApp({
     const weapon = reactive({ list: [...DEF_WEAPON], sell: Array(20).fill(0) });
     const armor  = reactive({ list: [...DEF_ARMOR],  sell: Array(20).fill(0) });
     const toast = reactive({ show: false, text: '', color: 'var(--border)' });
+
+    // 是否被 lineage.html 以 iframe 嵌入；嵌入時改用 postMessage 與父頁溝通，不做整頁跳轉
+    const embedded = window.self !== window.top;
+    if (embedded) {
+      // 即時預覽：拖動亮度／切換視角時，通知父頁的 3D 場景即時套用
+      watch(cameraMode, v => { try { window.parent.postMessage({ type: 'lineage-setting-live', cameraMode: v }, '*'); } catch (e) {} });
+      watch(brightness, v => { try { window.parent.postMessage({ type: 'lineage-setting-live', brightness: v }, '*'); } catch (e) {} });
+    }
 
     // ── 驗證身份 ──
     onMounted(() => {
@@ -301,7 +309,12 @@ createApp({
         }
       }));
       showToast('✓ 配置已儲存', 'var(--gold)');
-      setTimeout(() => window.location.href = 'lineage.html', 1200);
+      if (embedded) {
+        // 嵌入模式：通知父頁存檔完成、由父頁關閉覆蓋層並重新套用設定（不跳轉）
+        setTimeout(() => { try { window.parent.postMessage({ type: 'lineage-setting-saved' }, '*'); } catch (e) {} }, 600);
+      } else {
+        setTimeout(() => window.location.href = 'lineage.html', 1200);
+      }
     }
 
     function doReset() {

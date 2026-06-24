@@ -40,6 +40,16 @@ canvas{display:block;}
 .hud-coin{width:14px;height:14px;border-radius:50%;background:var(--gold);border:2px solid var(--gold2);display:inline-block;}
 .char-name{color:var(--text);font-size:14px;}
 
+/* ===== 遊戲指引提示框 ===== */
+.game-hint{position:absolute;top:56px;left:20px;z-index:15;pointer-events:none;
+  background:rgba(0,0,0,0.55);border:1px solid #3a2510;border-radius:4px;
+  padding:8px 12px;font-size:14px;line-height:1.45;white-space:nowrap;
+  transition:left 0.15s ease;}
+.game-hint.shifted{left:430px;}
+.game-hint-line{color:#907050;}
+.game-hint-line.in-range{color:#44cc44;}
+.game-hint-line.out-range{color:#cc8844;}
+
 /* ===== 對話框 ===== */
 .dialog-box{
   position:absolute;top:56px;left:20px;
@@ -501,6 +511,29 @@ canvas{display:block;}
   display:flex;align-items:center;justify-content:center;
   color:var(--gold2);font-size:14px;letter-spacing:3px;
 }
+/* Vue 掛載前隱藏整個 app，避免 {{ }} 原始樣板（如鐵鎚游標提示）閃現 */
+[v-cloak]{display:none;}
+
+/* ===== 設定子頁面（iframe 嵌入 setting.html） ===== */
+.setting-frame-overlay{
+  position:absolute;inset:0;z-index:60;
+  background:rgba(0,0,0,0.72);
+  display:flex;align-items:center;justify-content:center;
+}
+.setting-frame-box{
+  width:min(880px,92vw);height:min(88vh,820px);
+  background:var(--panel);border:2px solid var(--border);
+  box-shadow:0 0 40px rgba(0,0,0,0.8);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.setting-frame-header{
+  display:flex;align-items:center;
+  padding:8px 14px;background:rgba(10,7,4,0.95);
+  border-bottom:1px solid var(--border);
+}
+.setting-frame-title{color:var(--gold2);font-size:14px;font-weight:700;letter-spacing:2px;}
+.setting-frame-header .panel-close{margin-left:auto;}
+.setting-frame-iframe{flex:1;width:100%;border:0;background:#080503;}
 
 /* ===== 子面板（儲值 / 配置 / 機率表） ===== */
 .sub-panel-overlay{
@@ -626,7 +659,9 @@ tr.sp-safe-row:hover td{background:rgba(20,60,20,0.3)!important;}
 </style>
 </head>
 <body>
-<div id="app">
+<!-- Vue 掛載前的靜態載入層（掛載後由 JS 移除，避免全黑與原始樣板閃現） -->
+<div id="preboot" class="boot-mask">⚔ 正在進入天堂世界…</div>
+<div id="app" v-cloak>
 
   <!-- 驗證中／載入畫面 -->
   <div v-if="!ready" class="boot-mask">⚔ 正在進入天堂世界…</div>
@@ -658,13 +693,31 @@ tr.sp-safe-row:hover td{background:rgba(20,60,20,0.3)!important;}
       <span>🧭 地圖導航中…</span>
       <button class="nav-pause-btn" @click="pauseNav">⏸ 暫停</button>
     </div>
+    <!-- 遊戲指引提示框（左上角；與歐林對話時右移避免被對話框遮住） -->
+    <div class="game-hint" :class="{shifted: dialog.show}">
+      <div class="game-hint-line">WASD / 方向鍵：移動</div>
+      <div class="game-hint-line">靠近歐林3格內點擊交談</div>
+      <div class="game-hint-line" :class="hint.inRange?'in-range':'out-range'">
+        歐林距離: {{hint.dist}}px {{hint.inRange?'✓可交談':'(需靠近)'}}
+      </div>
+    </div>
+    <!-- 設定子頁面（iframe 嵌入 setting.html，不跳頁；3D 場景保留在背後） -->
+    <div v-if="settingFrame" class="setting-frame-overlay">
+      <div class="setting-frame-box">
+        <div class="setting-frame-header">
+          <span class="setting-frame-title">⚙ 配置</span>
+          <button class="panel-close" @click="closeSettingPage">✕</button>
+        </div>
+        <iframe class="setting-frame-iframe" src="setting.html" title="配置"></iframe>
+      </div>
+    </div>
     <div class="hud">
       <div class="hud-bar">
         <span class="char-name">⚔ {{charName}}</span>
         <div class="hud-gold">
           <span class="hud-coin"></span>{{fmt(gold)}} 天幣
           <button class="topup-btn nav-btn" @click="goCashPay">💳 儲值</button>
-          <button class="topup-btn nav-btn" style="border-color:var(--blue);color:#88aaff;" @click="goSetting">⚙ 配置</button>
+          <button class="topup-btn nav-btn" style="border-color:var(--blue);color:#88aaff;" @click="openSettingPage">⚙ 配置</button>
           <button class="topup-btn nav-btn" style="border-color:var(--purple);color:#cc99ff;" @click="goRefineTable">📊 機率表</button>
           <button class="topup-btn nav-btn" style="border-color:#777;color:#bbb;" @click="doLogout">⏏ 登出</button>
         </div>
@@ -960,7 +1013,7 @@ tr.sp-safe-row:hover td{background:rgba(20,60,20,0.3)!important;}
         <div class="shop-panel-body">
           <div style="padding:8px 14px;background:var(--panel2);border-bottom:1px solid var(--border);font-size:11px;color:#888;">
             歐林以下列牌價收購精煉裝備。實際售價若高於牌價則以售價成交。
-            <span style="color:var(--gold);cursor:pointer;margin-left:6px;" @click="goSetting">⚙ 調整配置</span>
+            <span style="color:var(--gold);cursor:pointer;margin-left:6px;" @click="openSettingPage">⚙ 調整配置</span>
           </div>
           <div style="padding:6px 14px 2px;color:var(--gold);font-size:11px;font-weight:700;">⚔ 武器收購</div>
           <div v-for="lv in maxEnhLevel" :key="'w'+lv" class="sell-item-row"
@@ -1252,6 +1305,8 @@ createApp({
     const olinSellSelect=reactive({type:'',lv:0});
     // 地圖導航（自動尋路）狀態
     const nav=reactive({active:false,path:[],idx:0,target:null});
+    // 遊戲指引提示框（與歐林距離 / 是否可交談），每幀更新
+    const hint=reactive({dist:0,inRange:false});
 
     // ─── 消息日誌縮放比率 (1~10, 預設5) ───
     const msgLogScale=ref(5);
@@ -1297,6 +1352,15 @@ createApp({
     });
     let cameraBrightness=70;   // current scene brightness (0-100), persisted in lineage_config
     function applyBrightness(){ cameraBrightness=subSet.brightness; if(sceneApi)sceneApi.setBrightness(cameraBrightness); }
+    let cameraModeCur='fixed'; // current scene camera mode ('fixed'|'rotatable'), persisted in lineage_config
+    // 設定子頁面（以 iframe 嵌入 setting.html，不跳頁；3D 場景保留在背後）
+    const settingFrame=ref(false);
+    function openSettingPage(){ subPanel.value=null; settingFrame.value=true; }
+    function closeSettingPage(){
+      settingFrame.value=false;
+      // 關閉時依 localStorage 重新讀取並套用設定（若未存檔則還原為已存值，回復即時預覽）
+      syncFromStorage();
+    }
     const refineData=ref(null);
     const refineJsonLoaded=ref(false);
     const REFINE_BUILTIN={
@@ -1332,7 +1396,9 @@ createApp({
     // 起點與歐林位置改由 nav3d.js 的 tilemap 決定（地圖唯一真值來源）
     const _start=findChar('S'); let wx=_start.x, wy=_start.y;
     const _olin=findChar('O'); const OLIN_X=_olin.x, OLIN_Y=_olin.y;
-    const SPEED=2.0;
+    const SPEED=2.0;           // 基準速度：每 1/60 秒 2px（以 60fps 為基準，行為與舊版一致）
+    let _moveStep=SPEED;       // 本幀實際位移量（= SPEED × 影格時間係數），由 logicLoop 每幀更新
+    let _lastFrame=0;          // 上一幀時間戳（delta-time 用）
     let walkFrame=0,walkTick=0;
     let keys={};
 
@@ -1355,12 +1421,12 @@ createApp({
       const wp=nav.path[nav.idx];
       if(!wp){ stopNav(); return; }
       const dx=wp.x-wx, dy=wp.y-wy, dist=Math.hypot(dx,dy);
-      if(dist<SPEED*1.5){
+      if(dist<_moveStep*1.5){
         wx=wp.x; wy=wp.y; nav.idx++;
         if(nav.idx>=nav.path.length)stopNav();
         walkTick++; walkFrame=Math.floor(walkTick/10)%4; return;
       }
-      const ux=dx/dist, uy=dy/dist, nx=wx+ux*SPEED, ny=wy+uy*SPEED;
+      const ux=dx/dist, uy=dy/dist, nx=wx+ux*_moveStep, ny=wy+uy*_moveStep;
       if(!canStep(wx,wy,nx,ny)){ stopNav('⚠ 前方無法通行，已停止導航'); return; }
       if(walkable(nx,wy-16)||walkable(nx,wy+16)) wx=nx;
       if(walkable(wx-16,ny)||walkable(wx+16,ny)) wy=ny;
@@ -1516,6 +1582,7 @@ createApp({
       if(!cfg)return;
       if(cfg.maxEnhLevel) maxEnhLevel.value=cfg.maxEnhLevel;
       if(typeof cfg.brightness==='number'){ cameraBrightness=Math.min(100,Math.max(1,cfg.brightness)); subSet.brightness=cameraBrightness; if(sceneApi)sceneApi.setBrightness(cameraBrightness); }
+      if(cfg.cameraMode==='rotatable'||cfg.cameraMode==='fixed'){ cameraModeCur=cfg.cameraMode; if(sceneApi)sceneApi.setCameraMode(cameraModeCur); }
       if(cfg.priceConfig){
         const pc=cfg.priceConfig;
         if(pc.weapon&&pc.weapon.list&&pc.weapon.list.length) priceConfig.weapon.list=[...pc.weapon.list];
@@ -1976,19 +2043,26 @@ createApp({
       requestAnimationFrame(logicLoop);
     }
     // 每幀：更新邏輯座標(wx,wy)，把位置/移動狀態餵給 Babylon 場景
-    function logicLoop(){
+    function logicLoop(ts){
+      // delta-time：以實際影格時間換算位移，FPS 起伏時「實際移動速度不變」（不再隨掉幀變慢）
+      const now=ts||performance.now();
+      let dtFactor = _lastFrame ? (now-_lastFrame)/(1000/60) : 1;
+      _lastFrame=now;
+      if(!(dtFactor>0)) dtFactor=1;       // 第一幀或異常值 → 視為 1
+      if(dtFactor>3) dtFactor=3;          // 夾住上限，避免掉幀/切分頁後一次跳太遠穿牆
+      _moveStep = SPEED*dtFactor;
       let moving=false;
-      if(!ui.shop&&!ui.enhance&&!dialog.show){
+      if(!ui.shop&&!ui.enhance&&!dialog.show&&!settingFrame.value){
         const pressing=keys['ArrowLeft']||keys['a']||keys['ArrowRight']||keys['d']
                      ||keys['ArrowUp']||keys['w']||keys['ArrowDown']||keys['s'];
         if(nav.active&&pressing)stopNav('⏸ 已手動中斷導航');
         if(nav.active){ navStep(); moving=nav.active; }
         else {
           let dx=0,dy=0;
-          if(keys['ArrowLeft']||keys['a'])dx=-SPEED;
-          if(keys['ArrowRight']||keys['d'])dx=SPEED;
-          if(keys['ArrowUp']||keys['w'])dy=-SPEED;
-          if(keys['ArrowDown']||keys['s'])dy=SPEED;
+          if(keys['ArrowLeft']||keys['a'])dx=-_moveStep;
+          if(keys['ArrowRight']||keys['d'])dx=_moveStep;
+          if(keys['ArrowUp']||keys['w'])dy=-_moveStep;
+          if(keys['ArrowDown']||keys['s'])dy=_moveStep;
           if(dx!==0&&dy!==0){dx*=0.707;dy*=0.707;}
           const nx=wx+dx, ny=wy+dy;
           if(walkable(nx,wy-16)||walkable(nx,wy+16)) wx=nx;
@@ -2006,6 +2080,9 @@ createApp({
           sceneApi.setNavPath(nav.active ? [{x:wx,y:wy},...nav.path.slice(nav.idx)] : null);
         }
       }
+      // 更新遊戲指引提示框（與歐林距離；≤108 為可交談範圍，與點擊交談判定一致）
+      const _d=Math.round(Math.hypot(wx-OLIN_X,wy-OLIN_Y));
+      if(_d!==hint.dist){ hint.dist=_d; hint.inRange=_d<=108; }
       drawMinimap();
       requestAnimationFrame(logicLoop);
     }
@@ -2048,6 +2125,18 @@ createApp({
       // 從子頁面返回時重新同步狀態
       window.addEventListener('focus',syncFromStorage);
 
+      // 設定子頁面（iframe）訊息：即時預覽 + 存檔後關閉
+      window.addEventListener('message',(e)=>{
+        const d=e.data;
+        if(!d||typeof d!=='object')return;
+        if(d.type==='lineage-setting-live'){
+          if(typeof d.brightness==='number'&&sceneApi)sceneApi.setBrightness(d.brightness);
+          if((d.cameraMode==='fixed'||d.cameraMode==='rotatable')&&sceneApi)sceneApi.setCameraMode(d.cameraMode);
+        } else if(d.type==='lineage-setting-saved'){
+          closeSettingPage();
+        }
+      });
+
       // ─── 自動存檔 watch ───
       watch(gold,()=>persistPlayer());
       watch(inventory,()=>persistInventory(),{deep:true});
@@ -2059,7 +2148,7 @@ createApp({
       ready,charName,gold,canvas,msgLog,miniCanvas,minimap,miniWrap,
       bagToggleStyle,invPanelStyle,
       messages,shopTab,TABS,shopItems,selSlot,selItem,inventory,
-      ui,dialog,eff,toast,enhTgt,nav,pauseNav,
+      ui,dialog,eff,toast,enhTgt,nav,pauseNav,hint,
       buyModal,hammerMode,result,cursorPos,
       priceConfig,olinSellSelect,
       msgLogScale, changeMsgLogScale, resetMsgLogScale,
@@ -2073,6 +2162,7 @@ createApp({
       getListPrice,getActualSellPrice,
       selectOlinSell,doOlinSell,
       goSetting,goCashPay,goRefineTable,doLogout,
+      settingFrame,openSettingPage,closeSettingPage,
       DEFAULT_WEAPON_LIST,DEFAULT_ARMOR_LIST,
       subPanel,closeSubPanel,
       cpTwd,cpPresets,cpCoins,doCpTopup,
@@ -2081,6 +2171,8 @@ createApp({
     };
   }
 }).mount('#app');
+// Vue 已接管，移除靜態載入層（交棒給 app 內 v-if="!ready" 的 boot-mask）
+document.getElementById('preboot')?.remove();
 </script>
 <audio id="bgm" src="static/bgm/lineage_game.mp3" loop preload="auto"></audio>
 <script>
