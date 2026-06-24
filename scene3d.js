@@ -91,31 +91,180 @@ function createKnight(scene) {
   const armL = makeLimb(scene, root, -unit * 0.33, unit * 1.12, unit * 0.5, unit * 0.13, steel, 'armL');
   const armR = makeLimb(scene, root, unit * 0.33, unit * 1.12, unit * 0.5, unit * 0.13, steel, 'armR');
 
-  // Sword held in the right hand, pointing down-forward.
-  const swordMat = new BABYLON.StandardMaterial('swordMat', scene);
-  swordMat.diffuseColor = new BABYLON.Color3(0.7, 0.72, 0.8); swordMat.emissiveColor = new BABYLON.Color3(0.06, 0.06, 0.1);
-  const blade = BABYLON.MeshBuilder.CreateBox('blade', { width: unit * 0.05, depth: unit * 0.02, height: unit * 0.85 }, scene);
-  blade.material = swordMat; blade.parent = armR.mesh; blade.position.set(0, -unit * 0.55, unit * 0.14); blade.isPickable = false;
-  const guard = BABYLON.MeshBuilder.CreateBox('guard', { width: unit * 0.22, depth: unit * 0.05, height: unit * 0.05 }, scene);
-  guard.material = steelDark; guard.parent = armR.mesh; guard.position.set(0, -unit * 0.2, unit * 0.14); guard.isPickable = false;
+  // Sword-ready guard pose for the right arm (refs: Lineage knight sprite + live
+  // grip photo). The arm is raised forward so the gripping hand comes up in front
+  // of the chest instead of hanging at the hip. This is the BASE pose the idle/walk
+  // animation offsets from (so the sword arm never snaps back to a dead hang).
+  const armRBaseX = -1.05;   // swing forward+up at the shoulder
+  const armRBaseZ = -0.14;   // splay slightly outward so it clears the torso
+  armR.pivot.rotation.x = armRBaseX;
+  armR.pivot.rotation.z = armRBaseZ;
 
-  return { root, legL, legR, armL, armR, torso, _t: 0, _baseY: torso.position.y, _tabBaseY: tabard.position.y, tabard, unit };
+  // Sword gripped in the right hand and held out forward — a broad flat blade with a
+  // cross-guard, wrapped grip and round pommel so it reads clearly as a sword (not a cane).
+  const swordMat = new BABYLON.StandardMaterial('swordMat', scene);
+  swordMat.diffuseColor = new BABYLON.Color3(0.78, 0.8, 0.88); swordMat.specularColor = new BABYLON.Color3(0.6, 0.6, 0.7);
+  swordMat.specularPower = 64; swordMat.emissiveColor = new BABYLON.Color3(0.08, 0.08, 0.12);
+  const gripMat = new BABYLON.StandardMaterial('gripMat', scene);
+  gripMat.diffuseColor = new BABYLON.Color3(0.3, 0.18, 0.1); gripMat.specularColor = new BABYLON.Color3(0, 0, 0);
+  // Brighter, more saturated gold for the fittings (ref: cartoon knight sword).
+  const brassMat = new BABYLON.StandardMaterial('brassMat', scene);
+  brassMat.diffuseColor = new BABYLON.Color3(0.82, 0.62, 0.22); brassMat.specularColor = new BABYLON.Color3(0.7, 0.55, 0.2);
+  brassMat.specularPower = 48; brassMat.emissiveColor = new BABYLON.Color3(0.14, 0.1, 0.03);
+  // Cyan jewel set in the cross-guard — the sword's signature accent. Self-lit so it
+  // still reads as a glowing gem in the dim dungeon.
+  const gemMat = new BABYLON.StandardMaterial('gemMat', scene);
+  gemMat.diffuseColor = new BABYLON.Color3(0.2, 0.72, 0.95); gemMat.specularColor = new BABYLON.Color3(0.85, 0.95, 1.0);
+  gemMat.specularPower = 96; gemMat.emissiveColor = new BABYLON.Color3(0.12, 0.5, 0.72);
+  // Group all sword parts under one node so it can be posed (tilted forward in the hand).
+  // Held out forward at ~90° to the hanging arm (blade points ahead, horizontal —
+  // not dragging on the floor). Local -Y (blade) maps to +Z forward at rotation.x = -90°.
+  const sword = new BABYLON.TransformNode('sword', scene);
+  // Seat the hilt right in the fist (the far end of the raised arm, arm-local y≈-0.5)
+  // so the guard sits against the hand and the blade rises up-and-forward from it.
+  sword.parent = armR.mesh; sword.position.set(unit * 0.02, -unit * 0.52, unit * 0.04); sword.rotation.x = -Math.PI / 2;
+  // Blade dims chosen so that AFTER the -90°X pose the broad flat faces sideways
+  // (vertical) toward the iso camera: thin across X, broad in Z (→vertical), long in Y (→forward).
+  const blade = BABYLON.MeshBuilder.CreateBox('blade', { width: unit * 0.05, depth: unit * 0.2, height: unit * 0.72 }, scene);
+  blade.material = swordMat; blade.parent = sword; blade.position.y = -unit * 0.44; blade.isPickable = false;
+  // central fuller (raised spine) down the broad face so it reads as forged steel, not a pole
+  const fuller = BABYLON.MeshBuilder.CreateBox('fuller', { width: unit * 0.07, depth: unit * 0.05, height: unit * 0.58 }, scene);
+  fuller.material = steelDark; fuller.parent = sword; fuller.position.y = -unit * 0.42; fuller.isPickable = false;
+  // Blade point — a 4-sided pyramid whose base is the blade's exact rectangle (0.05 × 0.2),
+  // tapering to a centred point so the broad flat faces continue straight into the tip.
+  // The old tip was a rotated 4-sided cone scaled on X: it ended up narrower than the blade
+  // AND offset to one side, so it read as a separate spike. We rotate the square base 45° to
+  // axis-align it, BAKE that into the vertices (so scaling then stretches a true rectangle,
+  // not a sheared rhombus), then scale X/Z to match the blade exactly.
+  const tip = BABYLON.MeshBuilder.CreateCylinder('bladeTip', { diameterTop: unit * 0.2, diameterBottom: 0, height: unit * 0.22, tessellation: 4 }, scene);
+  tip.rotation.y = Math.PI / 4; tip.bakeCurrentTransformIntoVertices();
+  tip.material = swordMat; tip.parent = sword;
+  tip.scaling.x = 0.354;   // 0.05 / 0.1414 → base X == blade width
+  tip.scaling.z = 1.414;   // 0.20 / 0.1414 → base Z == blade depth
+  tip.position.y = -unit * 0.91; tip.isPickable = false;
+  // Cross-guard: a gold bar with rounded knobs flaring out at each tip (ref sword).
+  const guard = BABYLON.MeshBuilder.CreateBox('guard', { width: unit * 0.4, depth: unit * 0.13, height: unit * 0.1 }, scene);
+  guard.material = brassMat; guard.parent = sword; guard.position.y = -unit * 0.05; guard.isPickable = false;
+  for (const sx of [-1, 1]) {
+    const knob = BABYLON.MeshBuilder.CreateSphere('guardKnob', { diameter: unit * 0.14 }, scene);
+    knob.material = brassMat; knob.parent = sword; knob.position.set(sx * unit * 0.2, -unit * 0.05, 0); knob.isPickable = false;
+  }
+  // Cyan jewel embedded in the centre of the guard, bulging out the camera-facing face.
+  const gem = BABYLON.MeshBuilder.CreateSphere('gem', { diameter: unit * 0.12 }, scene);
+  gem.material = gemMat; gem.parent = sword; gem.position.set(0, -unit * 0.05, 0); gem.scaling.z = 1.3; gem.isPickable = false;
+  // Leather grip — tapers the NATURAL way: fuller where the hand grips at the guard,
+  // slimmer toward the pommel. (An earlier version flared it wider toward the pommel,
+  // i.e. an upside-down cone, which made the handle look like it pointed the wrong way.)
+  const grip = BABYLON.MeshBuilder.CreateCylinder('grip', { diameterTop: unit * 0.085, diameterBottom: unit * 0.105, height: unit * 0.22 }, scene);
+  grip.material = gripMat; grip.parent = sword; grip.position.y = unit * 0.11; grip.isPickable = false;
+  // Brass ferrule — a short collar at the grip's pommel end that widens from the slim
+  // grip out to the pommel's neck, bridging the seam so grip → pommel reads as one piece.
+  const ferrule = BABYLON.MeshBuilder.CreateCylinder('ferrule', { diameterTop: unit * 0.11, diameterBottom: unit * 0.088, height: unit * 0.045 }, scene);
+  ferrule.material = brassMat; ferrule.parent = sword; ferrule.position.y = unit * 0.238; ferrule.isPickable = false;
+  // Faceted diamond pommel (octahedron), sized to seat on the ferrule with no pinch:
+  // its widest middle sits at the ferrule's wide end, the upper half tucks in, and the
+  // lower half tapers to the butt point.
+  const pommel = BABYLON.MeshBuilder.CreatePolyhedron('pommel', { type: 1, size: unit * 0.062 }, scene);
+  pommel.material = brassMat; pommel.parent = sword; pommel.position.y = unit * 0.268; pommel.scaling.y = 1.2; pommel.isPickable = false;
+
+  return { root, legL, legR, armL, armR, torso, _t: 0, _baseY: torso.position.y, _tabBaseY: tabard.position.y, tabard, unit, armRBaseX, armRBaseZ };
 }
 
+// Olin the mage: long deep-blue robe, a tall pointed wizard hat with a gold band,
+// a white beard and a glowing-tipped staff — clearly a spellcaster, not a peddler.
 function createOlin(scene) {
   const unit = TILE_PX * WORLD_SCALE;
-  const root = new BABYLON.TransformNode('charRoot', scene);
+  const root = new BABYLON.TransformNode('olinRoot', scene);
   const robe = new BABYLON.StandardMaterial('robe', scene);
-  robe.diffuseColor = new BABYLON.Color3(0.22, 0.18, 0.14); robe.specularColor = new BABYLON.Color3(0, 0, 0);
+  robe.diffuseColor = new BABYLON.Color3(0.16, 0.16, 0.34); robe.specularColor = new BABYLON.Color3(0, 0, 0);
+  const hatMat = new BABYLON.StandardMaterial('hatMat', scene);
+  hatMat.diffuseColor = new BABYLON.Color3(0.12, 0.12, 0.28); hatMat.specularColor = new BABYLON.Color3(0, 0, 0);
+  const goldMat = new BABYLON.StandardMaterial('olinGold', scene);
+  goldMat.diffuseColor = new BABYLON.Color3(0.66, 0.52, 0.18); goldMat.emissiveColor = new BABYLON.Color3(0.18, 0.14, 0.03); goldMat.specularColor = new BABYLON.Color3(0.4, 0.35, 0.15);
   const skin = new BABYLON.StandardMaterial('oskin', scene);
-  skin.diffuseColor = new BABYLON.Color3(0.72, 0.56, 0.46); skin.specularColor = new BABYLON.Color3(0, 0, 0);
-  const body = BABYLON.MeshBuilder.CreateCylinder('obody', { diameterTop: unit * 0.42, diameterBottom: unit * 0.72, height: unit * 1.15 }, scene);
-  body.position.y = unit * 0.58; body.material = robe; body.parent = root; body.isPickable = false;
-  const hood = BABYLON.MeshBuilder.CreateCylinder('hood', { diameterTop: unit * 0.06, diameterBottom: unit * 0.44, height: unit * 0.42 }, scene);
-  hood.position.y = unit * 1.3; hood.material = robe; hood.parent = root; hood.isPickable = false;
-  const face = BABYLON.MeshBuilder.CreateSphere('face', { diameter: unit * 0.26 }, scene);
-  face.position.set(0, unit * 1.16, unit * 0.06); face.material = skin; face.parent = root; face.isPickable = false;
+  skin.diffuseColor = new BABYLON.Color3(0.74, 0.58, 0.48); skin.specularColor = new BABYLON.Color3(0, 0, 0);
+  const beardMat = new BABYLON.StandardMaterial('beardMat', scene);
+  beardMat.diffuseColor = new BABYLON.Color3(0.86, 0.86, 0.82); beardMat.specularColor = new BABYLON.Color3(0, 0, 0);
+
+  const body = BABYLON.MeshBuilder.CreateCylinder('obody', { diameterTop: unit * 0.4, diameterBottom: unit * 0.78, height: unit * 1.2 }, scene);
+  body.position.y = unit * 0.6; body.material = robe; body.parent = root; body.isPickable = false;
+  const trim = BABYLON.MeshBuilder.CreateTorus('otrim', { diameter: unit * 0.62, thickness: unit * 0.06 }, scene);
+  trim.position.y = unit * 0.06; trim.material = goldMat; trim.parent = root; trim.isPickable = false;
+  const face = BABYLON.MeshBuilder.CreateSphere('face', { diameter: unit * 0.27 }, scene);
+  face.position.set(0, unit * 1.3, 0); face.material = skin; face.parent = root; face.isPickable = false;
+  const beard = BABYLON.MeshBuilder.CreateCylinder('beard', { diameterTop: unit * 0.22, diameterBottom: unit * 0.02, height: unit * 0.34 }, scene);
+  beard.position.set(0, unit * 1.14, unit * 0.1); beard.material = beardMat; beard.parent = root; beard.isPickable = false;
+
+  // Pointed wizard hat: wide brim + tall cone + gold band.
+  const brim = BABYLON.MeshBuilder.CreateCylinder('hatBrim', { diameterTop: unit * 0.62, diameterBottom: unit * 0.62, height: unit * 0.05 }, scene);
+  brim.position.y = unit * 1.44; brim.material = hatMat; brim.parent = root; brim.isPickable = false;
+  const cone = BABYLON.MeshBuilder.CreateCylinder('hatCone', { diameterTop: unit * 0.01, diameterBottom: unit * 0.46, height: unit * 0.72 }, scene);
+  cone.position.set(0, unit * 1.82, -unit * 0.02); cone.rotation.x = -0.12; cone.material = hatMat; cone.parent = root; cone.isPickable = false;
+  const band = BABYLON.MeshBuilder.CreateTorus('hatBand', { diameter: unit * 0.42, thickness: unit * 0.05 }, scene);
+  band.position.y = unit * 1.5; band.material = goldMat; band.parent = root; band.isPickable = false;
+
+  // Staff with a glowing orb, held at his side.
+  const staffMat = new BABYLON.StandardMaterial('staffMat', scene);
+  staffMat.diffuseColor = new BABYLON.Color3(0.3, 0.2, 0.12); staffMat.specularColor = new BABYLON.Color3(0, 0, 0);
+  const staff = BABYLON.MeshBuilder.CreateCylinder('staff', { diameter: unit * 0.06, height: unit * 1.7 }, scene);
+  staff.position.set(unit * 0.5, unit * 0.85, 0); staff.material = staffMat; staff.parent = root; staff.isPickable = false;
+  const orbMat = new BABYLON.StandardMaterial('orbMat', scene);
+  orbMat.emissiveColor = new BABYLON.Color3(0.4, 0.7, 1.0); orbMat.diffuseColor = new BABYLON.Color3(0, 0, 0); orbMat.disableLighting = true;
+  const orb = BABYLON.MeshBuilder.CreateSphere('staffOrb', { diameter: unit * 0.2 }, scene);
+  orb.position.set(unit * 0.5, unit * 1.74, 0); orb.material = orbMat; orb.parent = root; orb.isPickable = false;
+  const orbGlow = new BABYLON.PointLight('orbGlow', new BABYLON.Vector3(0, 0, 0), scene);
+  orbGlow.parent = orb; orbGlow.diffuse = new BABYLON.Color3(0.4, 0.7, 1.0); orbGlow.intensity = 6; orbGlow.range = unit * 6; orbGlow.specular = new BABYLON.Color3(0, 0, 0);
   return { root };
+}
+
+// Furniture for Olin's study — a writing table and a filled bookshelf placed on fixed
+// tiles in the room (problem 5). Positions come from the tilemap so they track the room.
+function buildOlinFurniture(scene) {
+  const unit = TILE_PX * WORLD_SCALE;
+  const woodMat = new BABYLON.StandardMaterial('furnWood', scene);
+  woodMat.diffuseColor = new BABYLON.Color3(0.32, 0.2, 0.1); woodMat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
+  const woodDark = new BABYLON.StandardMaterial('furnWoodDark', scene);
+  woodDark.diffuseColor = new BABYLON.Color3(0.22, 0.13, 0.06); woodDark.specularColor = new BABYLON.Color3(0, 0, 0);
+  const bookCols = [
+    new BABYLON.Color3(0.6, 0.18, 0.16), new BABYLON.Color3(0.18, 0.34, 0.55),
+    new BABYLON.Color3(0.2, 0.45, 0.25), new BABYLON.Color3(0.5, 0.42, 0.16),
+    new BABYLON.Color3(0.4, 0.2, 0.45),
+  ].map((c, i) => { const m = new BABYLON.StandardMaterial('book' + i, scene); m.diffuseColor = c; m.specularColor = new BABYLON.Color3(0, 0, 0); return m; });
+
+  const tileToWorld = (col, row) => logicToWorld(col * TILE_PX + TILE_PX / 2, row * TILE_PX + TILE_PX / 2);
+
+  // ── Writing table (tile col 20, row 3) ──
+  (() => {
+    const { X, Z } = tileToWorld(20, 3);
+    const top = BABYLON.MeshBuilder.CreateBox('tableTop', { width: unit * 1.2, depth: unit * 0.7, height: unit * 0.08 }, scene);
+    top.position.set(X, unit * 0.62, Z); top.material = woodMat; top.isPickable = false;
+    for (const [sx, sz] of [[-0.5, -0.27], [0.5, -0.27], [-0.5, 0.27], [0.5, 0.27]]) {
+      const leg = BABYLON.MeshBuilder.CreateBox('tableLeg', { width: unit * 0.08, depth: unit * 0.08, height: unit * 0.6 }, scene);
+      leg.position.set(X + sx * unit, unit * 0.3, Z + sz * unit); leg.material = woodDark; leg.isPickable = false;
+    }
+    // an open book + a candle on the desk
+    const bookM = BABYLON.MeshBuilder.CreateBox('deskBook', { width: unit * 0.34, depth: unit * 0.24, height: unit * 0.04 }, scene);
+    bookM.position.set(X, unit * 0.68, Z); bookM.rotation.y = 0.3; bookM.material = bookCols[1]; bookM.isPickable = false;
+  })();
+
+  // ── Bookshelf against the back wall (tile col 14, row 1) ──
+  (() => {
+    const { X, Z } = tileToWorld(14, 1);
+    const W = unit * 1.1, H = unit * 1.7, D = unit * 0.4;
+    const back = BABYLON.MeshBuilder.CreateBox('shelfBack', { width: W, depth: D, height: H }, scene);
+    back.position.set(X, H / 2, Z); back.material = woodDark; back.isPickable = false;
+    for (let s = 0; s < 3; s++) {
+      const y = H * (0.32 + s * 0.27);
+      const shelf = BABYLON.MeshBuilder.CreateBox('shelf', { width: W * 0.92, depth: D * 0.9, height: unit * 0.05 }, scene);
+      shelf.position.set(X, y, Z + D * 0.05); shelf.material = woodMat; shelf.isPickable = false;
+      for (let b = 0; b < 6; b++) {
+        const bw = unit * (0.1 + Math.random() * 0.04);
+        const book = BABYLON.MeshBuilder.CreateBox('shelfBook', { width: bw, depth: D * 0.6, height: unit * (0.18 + Math.random() * 0.06) }, scene);
+        book.position.set(X - W * 0.4 + b * (W * 0.16), y + unit * 0.13, Z + D * 0.08);
+        book.material = bookCols[(s * 6 + b) % bookCols.length]; book.isPickable = false;
+      }
+    }
+  })();
 }
 
 function buildLights(scene, brightness) {
@@ -278,34 +427,25 @@ function createScene(canvas, opts = {}) {
       player._t += 0.28;
       const s = Math.sin(player._t) * 0.6;
       player.legL.pivot.rotation.x = s;  player.legR.pivot.rotation.x = -s;
-      player.armL.pivot.rotation.x = -s * 0.85; player.armR.pivot.rotation.x = s * 0.85;
+      // left arm swings freely; right arm holds the sword so it keeps the ready
+      // pose and only bobs a little around its raised base.
+      player.armL.pivot.rotation.x = -s * 0.85; player.armR.pivot.rotation.x = player.armRBaseX + s * 0.18;
       const bob = Math.abs(Math.sin(player._t)) * unit * 0.05;
       player.torso.position.y = player._baseY + bob;
       player.tabard.position.y = player._tabBaseY + bob;
     } else {
       player.legL.pivot.rotation.x = 0; player.legR.pivot.rotation.x = 0;
-      player.armL.pivot.rotation.x = 0; player.armR.pivot.rotation.x = 0;
+      player.armL.pivot.rotation.x = 0; player.armR.pivot.rotation.x = player.armRBaseX;
       player.torso.position.y = player._baseY; player.tabard.position.y = player._tabBaseY;
     }
     player.root.rotation.y = _playerFacing;
   });
 
-  // Candle the knight carries: a bright warm light giving a ~10-tile visibility disc.
-  // The light source sits well above the knight (the flame mesh stays in hand) so the
-  // lit floor area is a wide, fairly even disc rather than a tight glow at the feet.
-  const candle = new BABYLON.PointLight('candle', new BABYLON.Vector3(unit * 0.3, unit * 10, 0), scene);
-  candle.parent = player.root;
-  candle.diffuse = new BABYLON.Color3(1.0, 0.93, 0.76);
-  candle.intensity = 120; candle.range = unit * 36;          // warm "daylight" pool spanning ~20 tiles
-  candle.falloffType = BABYLON.Light.FALLOFF_GLTF;           // gentler than inverse-square = wider bright area
-  const candleFlame = BABYLON.MeshBuilder.CreateSphere('candleFlame', { diameter: unit * 0.12 }, scene);
-  const candleMat = new BABYLON.StandardMaterial('candleMat', scene);
-  candleMat.emissiveColor = new BABYLON.Color3(1, 0.85, 0.5); candleMat.disableLighting = true;
-  candleFlame.material = candleMat; candleFlame.parent = player.root; candleFlame.position.set(unit * 0.3, unit * 1.1, 0); candleFlame.isPickable = false;
-  let _ct = 0;
-  scene.onBeforeRenderObservable.add(() => { _ct += 0.18; candle.intensity = 120 + Math.sin(_ct) * 6; });
+  // (Player-carried light removed by request — visibility is governed solely by the
+  //  ambient brightness slider plus the torch/campfire lights.)
 
   const olin = createOlin(scene);
+  buildOlinFurniture(scene);
   const plate = new BABYLON.DynamicTexture('plate', { width: 256, height: 64 }, scene, false);
   plate.hasAlpha = true;
   plate.drawText('歐林【雜貨商】', null, 44, 'bold 28px sans-serif', '#f0d060', 'transparent', true);
@@ -322,6 +462,32 @@ function createScene(canvas, opts = {}) {
       opts.onGroundClick(x, y);
     }
   });
+
+  // ── Navigation guide: white dashed trail along the path + a bobbing arrow at the
+  //    destination (problem 2 — restores the 2D nav overlay in the 3D scene). ──
+  let navLine = null;
+  const navArrowMat = new BABYLON.StandardMaterial('navArrowMat', scene);
+  navArrowMat.emissiveColor = new BABYLON.Color3(1, 1, 1); navArrowMat.diffuseColor = new BABYLON.Color3(0, 0, 0); navArrowMat.disableLighting = true;
+  const navArrow = BABYLON.MeshBuilder.CreateCylinder('navArrow', { diameterTop: unit * 0.5, diameterBottom: 0, height: unit * 0.5, tessellation: 4 }, scene);
+  navArrow.rotation.y = Math.PI / 4; navArrow.material = navArrowMat; navArrow.isPickable = false; navArrow.setEnabled(false);
+  const navArrowBaseY = unit * 0.9;
+  scene.onBeforeRenderObservable.add(() => {
+    if (navArrow.isEnabled()) { navArrow.position.y = navArrowBaseY + Math.sin(performance.now() / 250) * unit * 0.18; navArrow.rotation.y += 0.03; }
+  });
+  function setNavPath(path) {
+    if (navLine) { navLine.dispose(); navLine = null; }
+    if (!path || path.length < 2) { navArrow.setEnabled(false); return; }
+    const pts = path.map((p) => { const { X, Z } = logicToWorld(p.x, p.y); return new BABYLON.Vector3(X, unit * 0.08, Z); });
+    navLine = BABYLON.MeshBuilder.CreateDashedLines('navLine', { points: pts, dashSize: 5, gapSize: 4, dashNb: 240 }, scene);
+    navLine.color = new BABYLON.Color3(1, 1, 1); navLine.isPickable = false;
+    const dest = pts[pts.length - 1];
+    navArrow.position.set(dest.x, navArrowBaseY, dest.z); navArrow.setEnabled(true);
+  }
+
+  // We have ambient + ~7 torch/campfire lights. StandardMaterial keeps only 4 lights
+  // by default, which would silently drop nearby torches on some surfaces — raise the
+  // cap so every lit surface receives all the fire lights it's within range of.
+  scene.materials.forEach((m) => { if (m.maxSimultaneousLights !== undefined) m.maxSimultaneousLights = 10; });
 
   engine.resize(); applyOrtho();   // size to the (now laid-out) canvas
   engine.runRenderLoop(() => scene.render());
@@ -342,6 +508,7 @@ function createScene(canvas, opts = {}) {
       olin.root.position.set(X, 0, Z);
       plateMesh.position.set(X, TILE_PX * WORLD_SCALE * 1.9, Z);
     },
+    setNavPath,
     dispose: () => engine.dispose(),
     _internals: { scene, engine, camera, BABYLON },
   };

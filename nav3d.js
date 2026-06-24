@@ -6,18 +6,19 @@ const TILE_PX = 40;
 
 // Legend: # wall  . floor  S start  O olin  C campfire  t torch  P pillar
 // Outer ring is solid wall. Interior floor is contiguous (blocks are detached),
-// guaranteeing connectivity; Olin sits in a 3-wall alcove with a downward opening.
+// guaranteeing connectivity. Player starts at the map centre (S). Olin occupies a
+// larger walled study in the top-right, entered through a single downward opening.
 const TILEMAP = [
   '########################',
-  '#S.............#.......#',
-  '#..............#...O...#',
-  '#..............#.......#',
-  '#......t.......#t......#',
-  '#..............#.......#',
-  '#..............####.####',
+  '#...........#..........#',
+  '#...........#....O.....#',
+  '#...........#..........#',
+  '#......t....#....t.....#',
+  '#...........#..........#',
+  '#...........######.#####',
   '#......................#',
   '#........C.............#',
-  '#......................#',
+  '#..........S...........#',
   '#..t..####....####..t..#',
   '#......................#',
   '#...##......PP......##.#',
