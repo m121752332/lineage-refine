@@ -961,7 +961,7 @@ createApp({
     // 地圖導航（自動尋路）狀態
     const nav=reactive({active:false,path:[],idx:0,target:null});
     // 遊戲指引提示框（與歐林距離 / 是否可交談），每幀更新
-    const hint=reactive({dist:0,inRange:false});
+    const hint=reactive({dist:0,inRange:false,olinHovered:false});
 
     // ─── 消息日誌縮放比率 (1~10, 預設5) ───
     const msgLogScale=ref(5);
@@ -1586,9 +1586,15 @@ createApp({
         brightness: (typeof cfg.brightness==='number') ? cfg.brightness : 70,
         onGroundClick: (x,y)=>{
           if(ui.shop||ui.enhance||dialog.show)return;
-          // 點在歐林可交談範圍內且玩家已靠近 → 交談；否則導航
-          if(Math.hypot(wx-OLIN_X,wy-OLIN_Y)<=108 && Math.hypot(x-OLIN_X,y-OLIN_Y)<=60){ talkToOlin(); return; }
           startNavTo(x,y);
+        },
+        onOlinClick: ()=>{
+          if(ui.shop||ui.enhance||dialog.show)return;
+          if(hint.inRange) talkToOlin(); else startNavTo(OLIN_X,OLIN_Y);
+        },
+        onOlinHover: (over)=>{
+          hint.olinHovered=over;
+          if(sceneApi&&sceneApi.setOlinHint) sceneApi.setOlinHint(hint.inRange&&over);
         },
       });
       sceneApi.setOlin(OLIN_X, OLIN_Y);
@@ -1650,7 +1656,7 @@ createApp({
       const _d=Math.round(Math.hypot(wx-OLIN_X,wy-OLIN_Y));
       if(_d!==hint.dist){ hint.dist=_d; }
       const _ir=_d<=108;
-      if(_ir!==hint.inRange){ hint.inRange=_ir; if(sceneApi&&sceneApi.setOlinHint)sceneApi.setOlinHint(_ir); }
+      if(_ir!==hint.inRange){ hint.inRange=_ir; if(sceneApi&&sceneApi.setOlinHint)sceneApi.setOlinHint(_ir&&hint.olinHovered); }
       drawMinimap();
       requestAnimationFrame(logicLoop);
     }

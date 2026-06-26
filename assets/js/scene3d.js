@@ -331,6 +331,10 @@ function createOlin(scene) {
   const beardMat = new BABYLON.StandardMaterial('beardMat', scene);
   beardMat.diffuseColor = new BABYLON.Color3(0.86, 0.86, 0.82); beardMat.specularColor = new BABYLON.Color3(0, 0, 0);
 
+  // Invisible hitbox for pointer picking — covers body + hat column so clicks land on Olin, not just floor.
+  const hitbox = BABYLON.MeshBuilder.CreateCylinder('olinHitbox', { diameter: unit * 0.9, height: unit * 2.2 }, scene);
+  hitbox.position.y = unit * 1.1; hitbox.parent = root; hitbox.visibility = 0; hitbox.isPickable = true; hitbox._isOlin = true;
+
   const body = BABYLON.MeshBuilder.CreateCylinder('obody', { diameterTop: unit * 0.4, diameterBottom: unit * 0.78, height: unit * 1.2 }, scene);
   body.position.y = unit * 0.6; body.material = robe; body.parent = root; body.isPickable = false;
   const trim = BABYLON.MeshBuilder.CreateTorus('otrim', { diameter: unit * 0.62, thickness: unit * 0.06 }, scene);
@@ -359,7 +363,7 @@ function createOlin(scene) {
   orb.position.set(unit * 0.5, unit * 1.74, 0); orb.material = orbMat; orb.parent = root; orb.isPickable = false;
   const orbGlow = new BABYLON.PointLight('orbGlow', new BABYLON.Vector3(0, 0, 0), scene);
   orbGlow.parent = orb; orbGlow.diffuse = new BABYLON.Color3(0.4, 0.7, 1.0); orbGlow.intensity = 6; orbGlow.range = unit * 6; orbGlow.specular = new BABYLON.Color3(0, 0, 0);
-  return { root };
+  return { root, hitbox };
 }
 
 // Furniture for Olin's study — a writing table and a filled bookshelf placed on fixed
@@ -624,34 +628,41 @@ function createScene(canvas, opts = {}) {
   const plateMesh = BABYLON.MeshBuilder.CreatePlane('plateMesh', { width: unit*2.6, height: unit*1.3 }, scene);
   plateMesh.material = plateMat; plateMesh.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL; plateMesh.isPickable = false;
 
-  // Dynamic "click to talk" prompt — hidden until the player is in range, then it
-  // bobs/pulses above the nameplate (toggled by sceneApi.setOlinHint).
-  const hintTex = new BABYLON.DynamicTexture('olinHint', { width: 256, height: 64 }, scene, false);
-  hintTex.hasAlpha = true;
-  {
-    const ctx = hintTex.getContext();
-    ctx.clearRect(0, 0, 256, 64);
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#f0d060';
-    ctx.font = 'bold 24px "Noto Sans TC", sans-serif';
-    ctx.fillText('▼ 點擊交談', 128, 44);
-    hintTex.update(true);
-  }
-  const hintMat = new BABYLON.StandardMaterial('olinHintMat', scene);
-  hintMat.diffuseTexture = hintTex; hintMat.emissiveColor = new BABYLON.Color3(1, 1, 1); hintMat.opacityTexture = hintTex; hintMat.disableLighting = true; hintMat.backFaceCulling = false;
-  const hintMesh = BABYLON.MeshBuilder.CreatePlane('olinHintMesh', { width: unit*2.4, height: unit*0.6 }, scene);
-  hintMesh.material = hintMat; hintMesh.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL; hintMesh.isPickable = false; hintMesh.setEnabled(false);
-  const hintBaseY = unit * 2.7;   // floats above the two-line nameplate
+  // Floor ring hint — a glowing gold disc on the ground under Olin, visible from the
+  // iso camera angle. Pulses in/out (toggled by sceneApi.setOlinHint).
+  const hintRingMat = new BABYLON.StandardMaterial('olinHintRingMat', scene);
+  hintRingMat.emissiveColor = new BABYLON.Color3(0.95, 0.82, 0.18);
+  hintRingMat.disableLighting = true;
+  hintRingMat.wireframe = false;
+  // Use a torus (ring) lying flat on the ground.
+  const hintMesh = BABYLON.MeshBuilder.CreateTorus('olinHintRing', {
+    diameter: unit * 2.2, thickness: unit * 0.22, tessellation: 40
+  }, scene);
+  hintMesh.position.y = unit * 0.04;   // just above ground
+  hintMesh.material = hintRingMat; hintMesh.isPickable = false; hintMesh.setEnabled(false);
   scene.onBeforeRenderObservable.add(() => {
     if (!hintMesh.isEnabled()) return;
     const t = performance.now();
-    hintMesh.position.y = hintBaseY + Math.sin(t / 220) * unit * 0.18;
-    const s = 1 + Math.sin(t / 180) * 0.07;
+    const s = 0.9 + Math.sin(t / 280) * 0.12;
     hintMesh.scaling.set(s, s, s);
+    hintRingMat.emissiveColor = new BABYLON.Color3(
+      0.95, 0.72 + Math.sin(t / 220) * 0.12, 0.1 + Math.sin(t / 180) * 0.08
+    );
   });
 
+  let _olinHovered = false;
   scene.onPointerObservable.add((p) => {
+    if (p.type === BABYLON.PointerEventTypes.POINTERMOVE) {
+      const over = !!scene.pick(scene.pointerX, scene.pointerY, (m) => m._isOlin)?.hit;
+      if (over !== _olinHovered) { _olinHovered = over; if (opts.onOlinHover) opts.onOlinHover(over); }
+      return;
+    }
     if (p.type !== BABYLON.PointerEventTypes.POINTERPICK) return;
+    // Olin mesh click takes priority over ground
+    if (scene.pick(scene.pointerX, scene.pointerY, (m) => m._isOlin)?.hit) {
+      if (opts.onOlinClick) opts.onOlinClick();
+      return;
+    }
     const hit = scene.pick(scene.pointerX, scene.pointerY, (m) => m === ground);
     if (hit?.hit && opts.onGroundClick) {
       const { x, y } = worldToLogic(hit.pickedPoint.x, hit.pickedPoint.z);
@@ -703,7 +714,7 @@ function createScene(canvas, opts = {}) {
       const { X, Z } = logicToWorld(x, y);
       olin.root.position.set(X, 0, Z);
       plateMesh.position.set(X, TILE_PX * WORLD_SCALE * 1.9, Z);
-      hintMesh.position.set(X, hintBaseY, Z);
+      hintMesh.position.set(X, unit * 0.04, Z);
     },
     setOlinHint: (visible) => { hintMesh.setEnabled(!!visible); if (!visible) hintMesh.scaling.set(1, 1, 1); },
     setNavPath,
