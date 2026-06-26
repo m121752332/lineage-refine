@@ -21,26 +21,33 @@ npx serve .
 node --test tests/nav3d.test.mjs
 ```
 
-**務必透過 http 開啟，不要用 `file://`**：`refine_rates.json` 是執行期 `fetch` 的，`file://` 會觸發 CORS，機率會默默降級成程式內建預設值。`serve.json` 已設 `no-store` 避免開發時快取。
+**務必透過 http 開啟，不要用 `file://`**：`assets/data/refine_rates.json` 是執行期 `fetch` 的，`file://` 會觸發 CORS，機率會默默降級成程式內建預設值。`serve.json` 已設 `no-store` 避免開發時快取。
+
+## 目錄結構
+
+- **應用 JS 放 `assets/js/`**：`nav3d.js`、`scene3d.js`、`credits.js`。
+- **資料 JSON 放 `assets/data/`**：`refine_rates.json`。
+- **根目錄只留工具鏈設定**：`package.json`、`serve.json`、`skills-lock.json`、`start.cjs`/`.bat`/`.sh`（這些檔案位置由工具鏈固定，不可搬移）。
+- 搬移 JS/JSON 時必須同步更新所有引用：`lineage.html`（`<script src>`）、`logout.html`（`<script src>`）、`refine_table.html`（`fetch`）、`tests/nav3d.test.mjs`（`import`）。
 
 ## 關鍵限制（違反會壞）
 
 - **不可有建置步驟**：只能寫純瀏覽器相容 JS。不要引入 TypeScript、JSX、ES module bundler，或任何需要 transpile 的語法。
-- **`nav3d.js` 必須維持「無 DOM、無 Babylon」**：它是純邏輯，才能被 Node 測試 import，也才能維持邏輯／呈現分離。把 DOM 或 Babylon 寫進去會破壞測試與架構。
-- **`nav3d.js` / `scene3d.js` 以 classic `<script>` 全域載入**（各自 IIFE，只掛 `globalThis.Nav3D` / `globalThis.Scene3D`），不是 ES module。這是為了讓頁面連 `file://` 都能跑。載入順序固定：Babylon CDN → `nav3d.js` → `scene3d.js` → 頁面內 inline app。
+- **`assets/js/nav3d.js` 必須維持「無 DOM、無 Babylon」**：它是純邏輯，才能被 Node 測試 import，也才能維持邏輯／呈現分離。把 DOM 或 Babylon 寫進去會破壞測試與架構。
+- **`assets/js/nav3d.js` / `assets/js/scene3d.js` 以 classic `<script>` 全域載入**（各自 IIFE，只掛 `globalThis.Nav3D` / `globalThis.Scene3D`），不是 ES module。這是為了讓頁面連 `file://` 都能跑。載入順序固定：Babylon CDN → `assets/js/nav3d.js` → `assets/js/scene3d.js` → 頁面內 inline app。
 - **Vue 範本閃現**：`#app` 需保留 `v-cloak`（搭配 `[v-cloak]{display:none}` 與 `#preboot` 靜態載入層），否則掛載前 `{{ }}` 原始範本會外露。
 
 ## 場景的三層架構（最重要、需跨檔理解）
 
 3D 場景刻意拆成「邏輯／呈現／黏合」三層，改動時要分清楚責任歸屬：
 
-1. **`nav3d.js` — 純導航邏輯**
+1. **`assets/js/nav3d.js` — 純導航邏輯**
    - `TILEMAP` 是**地圖的唯一真值來源**：A* 導航網格與 3D 牆面幾何「都」由它生成。要改地圖就改這個字串陣列。
    - 圖例：`#`牆 `.`地板 `S`起點 `O`歐林 `C`營火 `t`火把 `P`柱子。外圈必為實牆、內部地板須連通。
    - 提供：`walkable()`、A* `findPath()`（含視線平滑）、`canStep()` 碰撞、座標轉換。
    - **無物理引擎**（見 `docs/adr/0002`）：碰撞用射線／網格判定即可。
 
-2. **`scene3d.js` — 純 Babylon 呈現**
+2. **`assets/js/scene3d.js` — 純 Babylon 呈現**
    - `createScene(canvas, opts)` 回傳 `sceneApi`：`setPlayer`、`setOlin`、`setNavPath`、`setCameraMode`、`setBrightness`、`dispose`。
    - 正交相機（2.5D 等角，俯角鎖定）；`cameraMode` 為 `'fixed'` | `'rotatable'`。
    - 多盞點光源（火把／營火）以 `StandardMaterial` 逐像素打光，`maxSimultaneousLights=10`——放大時填充率成本高，是效能熱點。
@@ -70,11 +77,11 @@ node --test tests/nav3d.test.mjs
 
 ## 精煉系統
 
-機率資料與程式分離：`refine_rates.json`（執行期 fetch，失敗則用內建預設）。規格詳見 `docs/06_refine_system.md`。重點：`base` 基礎成功率、`safe` 安定範圍內固定 100%、卷軸 `scroll_bonus` 直接疊加並 clamp 至 100；強化費用 `500 × 2^當前等級`。
+機率資料與程式分離：`assets/data/refine_rates.json`（執行期 fetch，失敗則用內建預設）。規格詳見 `docs/06_refine_system.md`。重點：`base` 基礎成功率、`safe` 安定範圍內固定 100%、卷軸 `scroll_bonus` 直接疊加並 clamp 至 100；強化費用 `500 × 2^當前等級`。
 
 ## 設計文件與詞彙
 
-- `README.md`：完整功能與資料層說明。
+- `readme.md`：完整功能與資料層說明。
 - `CONTEXT.md`：場景／相機的統一詞彙（Scene vs Map、Fixed/Rotatable view、Character/Knight、NPC/Olin）——命名請遵循。
 - `docs/`：中文設計規格（`06_refine_system.md` 最關鍵）。
 - `docs/adr/`：架構決策（0001 改用 Babylon 3D；0002 在 3D 重建導航、不上物理引擎）。

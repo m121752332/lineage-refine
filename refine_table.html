@@ -312,7 +312,7 @@ createApp({
 
     onMounted(async () => {
       try {
-        const res = await fetch('refine_rates.json');
+        const res = await fetch('assets/data/refine_rates.json');
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         // 驗證結構

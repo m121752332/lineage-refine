@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import '../nav3d.js'; // classic global script: populates globalThis.Nav3D
+import '../assets/js/nav3d.js'; // classic global script: populates globalThis.Nav3D
 const {
   TILE_PX, mapSize, cellAt, walkable, findChar, isBlockedChar,
   NAV_CELL, worldToCell, cellCenter, cellNavigable, nearestNavCell,
