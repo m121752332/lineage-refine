@@ -300,7 +300,12 @@ createApp({
       return 'r-danger';
     }
 
+    // 是否被 lineage.html 以 iframe 嵌入；嵌入時改用 postMessage 通知父頁關閉，不做整頁跳轉
+    const embedded = window.self !== window.top;
+
     function goBack() {
+      // 嵌入模式：通知父頁關閉覆蓋層（不跳轉，3D 場景保留在背後）
+      if (embedded) { try { window.parent.postMessage({ type: 'lineage-frame-close' }, '*'); } catch (e) {} return; }
       if (document.referrer && document.referrer !== '') history.back();
       else window.location.href = 'lineage.html';
     }

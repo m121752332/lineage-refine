@@ -9,16 +9,80 @@
 (function () {
 let BABYLON, mapSize, cellAt, logicToWorld, worldToLogic, WORLD_SCALE, TILE_PX;
 
+// ── Hybrid texturing: drop a PNG path into ASSETS and that surface uses the image;
+//    leave it null and the procedural DynamicTexture fallback is used (works offline). ──
+const ASSETS = { floor: null, wall: null, magicCircle: null };
+function surfaceTexture(scene, url, fallbackFn, name) {
+  if (url) { const t = new BABYLON.Texture(url, scene); t.name = name; return t; }
+  return fallbackFn();
+}
+// Nudge a #rrggbb base color by an additive amount, clamped to byte range.
+function shadeColor(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const cl = (v) => Math.max(0, Math.min(255, v | 0));
+  return `rgb(${cl((n >> 16) + amt)},${cl(((n >> 8) & 255) + amt)},${cl((n & 255) + amt)})`;
+}
+
+// Rugged grey stone: irregular blocks + dark mortar + cracks + grit (ref dungeon walls).
 function stoneTexture(scene, base, name) {
-  const t = new BABYLON.DynamicTexture(name, { width: 128, height: 128 }, scene, false);
+  const S = 256;
+  const t = new BABYLON.DynamicTexture(name, { width: S, height: S }, scene, false);
   const ctx = t.getContext();
-  ctx.fillStyle = base; ctx.fillRect(0, 0, 128, 128);
-  for (let i = 0; i < 220; i++) { // speckle/crack noise -> gritty stone
-    const x = Math.random() * 128, y = Math.random() * 128, a = Math.random() * 0.18;
+  ctx.fillStyle = base; ctx.fillRect(0, 0, S, S);
+  const rowsN = 6, bh = S / rowsN;
+  for (let r = 0; r < rowsN; r++) {
+    const colsN = 4 + (r % 2);
+    const off = (r % 2) * (S / colsN / 2);
+    for (let c = -1; c < colsN; c++) {
+      const x = c * (S / colsN) + off, y = r * bh, w = S / colsN, h = bh;
+      ctx.fillStyle = shadeColor(base, (Math.random() - 0.5) * 44);
+      ctx.fillRect(x + 1.5, y + 1.5, w - 3, h - 3);     // gap = dark mortar showing base
+    }
+  }
+  for (let i = 0; i < 700; i++) {                        // grit speckle
+    const x = Math.random() * S, y = Math.random() * S, a = Math.random() * 0.18;
     ctx.fillStyle = `rgba(0,0,0,${a})`; ctx.fillRect(x, y, 2, 2);
   }
-  ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1;
-  for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.moveTo(Math.random()*128, Math.random()*128); ctx.lineTo(Math.random()*128, Math.random()*128); ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(0,0,0,0.32)'; ctx.lineWidth = 1.5;
+  for (let i = 0; i < 16; i++) { ctx.beginPath(); ctx.moveTo(Math.random()*S, Math.random()*S); ctx.lineTo(Math.random()*S, Math.random()*S); ctx.stroke(); }
+  t.update();
+  return t;
+}
+
+// Sandy dungeon floor: warm dirt base + tonal patches + pebbles + cracks + faint red stains.
+function groundTexture(scene, name) {
+  const S = 512;
+  const t = new BABYLON.DynamicTexture(name || 'groundTex', { width: S, height: S }, scene, false);
+  const ctx = t.getContext();
+  ctx.fillStyle = '#b89a6a'; ctx.fillRect(0, 0, S, S);
+  for (let i = 0; i < 60; i++) {                         // patchy light/dark tone
+    const x = Math.random()*S, y = Math.random()*S, rad = 20 + Math.random()*70;
+    const g = ctx.createRadialGradient(x, y, 1, x, y, rad);
+    g.addColorStop(0, Math.random() < 0.5 ? 'rgba(120,96,60,0.25)' : 'rgba(205,182,138,0.22)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, rad, 0, 7); ctx.fill();
+  }
+  for (let i = 0; i < 1400; i++) {                       // grit
+    const x = Math.random()*S, y = Math.random()*S;
+    ctx.fillStyle = `rgba(0,0,0,${Math.random()*0.12})`; ctx.fillRect(x, y, 2, 2);
+  }
+  for (let i = 0; i < 90; i++) {                         // grey pebbles
+    const x = Math.random()*S, y = Math.random()*S, r = 1.5 + Math.random()*3;
+    ctx.fillStyle = `rgba(${90+Math.random()*40|0},${85+Math.random()*35|0},${78+Math.random()*30|0},0.8)`;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  }
+  ctx.strokeStyle = 'rgba(40,28,16,0.4)'; ctx.lineWidth = 1.5;
+  for (let i = 0; i < 26; i++) {                         // jagged cracks
+    let x = Math.random()*S, y = Math.random()*S; ctx.beginPath(); ctx.moveTo(x, y);
+    for (let k = 0; k < 4; k++) { x += (Math.random()-0.5)*60; y += (Math.random()-0.5)*60; ctx.lineTo(x, y); }
+    ctx.stroke();
+  }
+  for (let i = 0; i < 8; i++) {                          // faint dried-blood stains
+    const x = Math.random()*S, y = Math.random()*S, rad = 15 + Math.random()*40;
+    const g = ctx.createRadialGradient(x, y, 1, x, y, rad);
+    g.addColorStop(0, 'rgba(120,30,20,0.18)'); g.addColorStop(1, 'rgba(120,30,20,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, rad, 0, 7); ctx.fill();
+  }
   t.update();
   return t;
 }
@@ -28,25 +92,106 @@ function buildLevel(scene) {
   const unit = TILE_PX * WORLD_SCALE;          // one tile in world units
   const wallH = unit * 1.6;
   const wallMat = new BABYLON.StandardMaterial('wallMat', scene);
-  wallMat.diffuseTexture = stoneTexture(scene, '#6a5a44', 'wallTex');   // brighter stone
+  wallMat.diffuseTexture = surfaceTexture(scene, ASSETS.wall, () => stoneTexture(scene, '#8a7e6e', 'wallTex'), 'wallTex');
   wallMat.specularColor = new BABYLON.Color3(0, 0, 0);
   const pillarMat = new BABYLON.StandardMaterial('pillarMat', scene);
-  pillarMat.diffuseTexture = stoneTexture(scene, '#544735', 'pillarTex');
+  pillarMat.diffuseTexture = surfaceTexture(scene, ASSETS.wall, () => stoneTexture(scene, '#6e6456', 'pillarTex'), 'pillarTex');
   pillarMat.specularColor = new BABYLON.Color3(0, 0, 0);
 
-  const walls = [];
+  // Deterministic 0..1 hash per cell — keeps the jagged crown stable across reloads.
+  const hash = (c, r) => { const v = Math.sin(c * 12.9898 + r * 78.233) * 43758.5453; return v - Math.floor(v); };
+
+  const parts = [];
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
     const ch = cellAt(c, r);
     const isWall = ch === '#', isPillar = ch === 'P';
     if (!isWall && !isPillar) continue;
     const { X, Z } = logicToWorld(c * TILE_PX + TILE_PX / 2, r * TILE_PX + TILE_PX / 2);
-    const w = isPillar ? unit * 0.55 : unit;
-    const box = BABYLON.MeshBuilder.CreateBox('w', { width: w, depth: w, height: wallH }, scene);
-    box.position.set(X, wallH / 2, Z);
-    box.material = isPillar ? pillarMat : wallMat;
-    if (isWall) walls.push(box); else box.isPickable = false;
+    if (isPillar) {
+      // rugged stone column (kept separate from the merged wall mass)
+      const col = BABYLON.MeshBuilder.CreateCylinder('pil', { diameterTop: unit * 0.42, diameterBottom: unit * 0.6, height: wallH * 1.15, tessellation: 7 }, scene);
+      col.position.set(X, wallH * 0.575, Z); col.material = pillarMat; col.isPickable = false;
+      continue;
+    }
+    const j = hash(c, r);
+    const h = wallH * (0.92 + j * 0.18);                     // per-cell height jitter -> uneven top line
+    const box = BABYLON.MeshBuilder.CreateBox('w', { width: unit, depth: unit, height: h }, scene);
+    box.position.set(X, h / 2, Z); box.material = wallMat; parts.push(box);
+    // off-centre capstone breaks the flat top into a jagged rocky crown
+    const cw = unit * (0.45 + j * 0.3);
+    const cap = BABYLON.MeshBuilder.CreateBox('wcap', { width: cw, depth: cw, height: unit * (0.18 + j * 0.22) }, scene);
+    cap.position.set(X + (j - 0.5) * unit * 0.4, h + unit * 0.08, Z + (j - 0.5) * unit * 0.4);
+    cap.material = wallMat; parts.push(cap);
   }
-  if (walls.length) { const merged = BABYLON.Mesh.MergeMeshes(walls, true, true, undefined, false, false); if (merged) merged.isPickable = false; }
+  if (parts.length) { const merged = BABYLON.Mesh.MergeMeshes(parts, true, true, undefined, false, false); if (merged) merged.isPickable = false; }
+}
+
+// Red summoning circle fixed on the player's start tile — pure geometry, swappable for a PNG.
+function buildMagicCircle(scene) {
+  const unit = TILE_PX * WORLD_SCALE;
+  const s = globalThis.Nav3D.findChar('S') || { x: 0, y: 0 };
+  const { X, Z } = logicToWorld(s.x, s.y);
+  const SZ = 256, t = new BABYLON.DynamicTexture('magicTex', { width: SZ, height: SZ }, scene, false);
+  const ctx = t.getContext(), cx = SZ / 2, cy = SZ / 2;
+  ctx.clearRect(0, 0, SZ, SZ);
+  ctx.strokeStyle = 'rgba(255,60,40,0.95)';
+  ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, SZ * 0.46, 0, 7); ctx.stroke();
+  ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, SZ * 0.40, 0, 7); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, SZ * 0.22, 0, 7); ctx.stroke();
+  const R = SZ * 0.40, pts = [];
+  for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * 2 * Math.PI / 5; pts.push([cx + Math.cos(a) * R, cy + Math.sin(a) * R]); }
+  ctx.lineWidth = 3; ctx.beginPath();
+  for (let i = 0; i < 5; i++) { const p = pts[(i * 2) % 5]; i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1]); }
+  ctx.closePath(); ctx.stroke();
+  for (let i = 0; i < 24; i++) { const a = i * 2 * Math.PI / 24; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); ctx.lineTo(cx + Math.cos(a) * SZ * 0.46, cy + Math.sin(a) * SZ * 0.46); ctx.stroke(); }
+  t.hasAlpha = true; t.update();
+  const mat = new BABYLON.StandardMaterial('magicMat', scene);
+  mat.diffuseTexture = surfaceTexture(scene, ASSETS.magicCircle, () => t, 'magicTex');
+  mat.diffuseTexture.hasAlpha = true; mat.opacityTexture = mat.diffuseTexture;
+  mat.emissiveColor = new BABYLON.Color3(0.9, 0.2, 0.12);
+  mat.disableLighting = true; mat.backFaceCulling = false;
+  const disc = BABYLON.MeshBuilder.CreateGround('magicCircle', { width: unit * 2.4, height: unit * 2.4 }, scene);
+  disc.position.set(X, unit * 0.04, Z); disc.material = mat; disc.isPickable = false;
+  scene.onBeforeRenderObservable.add(() => {
+    disc.rotation.y += 0.004;
+    const p = 0.7 + Math.sin(performance.now() / 600) * 0.3;
+    mat.emissiveColor.set(0.9 * p, 0.2 * p, 0.12 * p);
+  });
+}
+
+// Scattered terrain dressing: rocks across the floor, urns hugging walls. Static & merged.
+function buildScatter(scene) {
+  const { cols, rows } = mapSize();
+  const unit = TILE_PX * WORLD_SCALE;
+  const rockMat = new BABYLON.StandardMaterial('scatterRock', scene);
+  rockMat.diffuseColor = new BABYLON.Color3(0.42, 0.39, 0.34); rockMat.specularColor = new BABYLON.Color3(0, 0, 0);
+  const potMat = new BABYLON.StandardMaterial('scatterPot', scene);
+  potMat.diffuseColor = new BABYLON.Color3(0.45, 0.3, 0.16); potMat.specularColor = new BABYLON.Color3(0.08, 0.08, 0.08);
+
+  let seed = 1337; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  const floors = [];
+  for (let r = 1; r < rows - 1; r++) for (let c = 1; c < cols - 1; c++) if (cellAt(c, r) === '.') floors.push([c, r]);
+
+  const rocks = [];
+  for (const [c, r] of floors) {
+    if (rnd() > 0.12) continue;
+    const { X, Z } = logicToWorld(c * TILE_PX + TILE_PX * (0.3 + rnd() * 0.4), r * TILE_PX + TILE_PX * (0.3 + rnd() * 0.4));
+    const sz = unit * (0.12 + rnd() * 0.16);
+    const rock = BABYLON.MeshBuilder.CreatePolyhedron('scrock', { type: rnd() < 0.5 ? 0 : 2, size: sz }, scene);
+    rock.position.set(X, sz * 0.5, Z); rock.rotation.set(rnd() * 3, rnd() * 3, rnd() * 3);
+    rock.material = rockMat; rock.isPickable = false; rocks.push(rock);
+  }
+  if (rocks.length) { const m = BABYLON.Mesh.MergeMeshes(rocks, true, true, undefined, false, false); if (m) m.isPickable = false; }
+
+  let placed = 0;
+  for (const [c, r] of floors) {
+    if (placed >= 6) break;
+    const nearWall = cellAt(c + 1, r) === '#' || cellAt(c - 1, r) === '#' || cellAt(c, r + 1) === '#' || cellAt(c, r - 1) === '#';
+    if (!nearWall || rnd() > 0.25) continue;
+    const { X, Z } = logicToWorld(c * TILE_PX + TILE_PX / 2, r * TILE_PX + TILE_PX / 2);
+    const pot = BABYLON.MeshBuilder.CreateCylinder('urn', { diameterTop: unit * 0.18, diameterBottom: unit * 0.26, height: unit * 0.5, tessellation: 10 }, scene);
+    pot.position.set(X, unit * 0.25, Z); pot.material = potMat; pot.isPickable = false; placed++;
+  }
 }
 
 // A limb that swings from a pivot at its top (hip / shoulder), so rotating the
@@ -270,8 +415,8 @@ function buildOlinFurniture(scene) {
 function buildLights(scene, brightness) {
   const amb = new BABYLON.HemisphericLight('amb', new BABYLON.Vector3(0, 1, 0), scene);
   amb.intensity = brightnessToAmbient(brightness);       // map brightness slider (1-100) -> ambient
-  amb.diffuse = new BABYLON.Color3(0.5, 0.45, 0.4);
-  amb.groundColor = new BABYLON.Color3(0.05, 0.04, 0.03);
+  amb.diffuse = new BABYLON.Color3(0.55, 0.47, 0.38);    // warm sandy daylight tint
+  amb.groundColor = new BABYLON.Color3(0.06, 0.045, 0.03);
   return amb;
 }
 // Brightness slider 0-100 -> ambient intensity 0..MAX, graded full-dark to full-bright.
@@ -359,6 +504,16 @@ function buildFireProps(scene) {
       }
       const embers = BABYLON.MeshBuilder.CreateCylinder('cember', { diameter: unit * 0.5, height: unit * 0.08 }, scene);
       embers.position.set(X, unit * 0.16, Z); embers.material = emberMat; embers.isPickable = false;
+      // iron tripod cooking stand straddling the fire (ref: campfire in the dungeon)
+      for (let i = 0; i < 3; i++) {
+        const ang = i * (Math.PI * 2 / 3);
+        const leg = BABYLON.MeshBuilder.CreateCylinder('tripodLeg', { diameter: unit * 0.05, height: unit * 1.0 }, scene);
+        leg.material = metalMat; leg.isPickable = false;
+        leg.position.set(X + Math.cos(ang) * unit * 0.26, unit * 0.46, Z + Math.sin(ang) * unit * 0.26);
+        leg.rotation.z = -Math.cos(ang) * 0.5; leg.rotation.x = Math.sin(ang) * 0.5;
+      }
+      const hook = BABYLON.MeshBuilder.CreateCylinder('tripodHook', { diameter: unit * 0.035, height: unit * 0.28 }, scene);
+      hook.material = metalMat; hook.position.set(X, unit * 0.78, Z); hook.isPickable = false;
       addFire(scene, X, unit * 0.2, Z, 2.0, 160);
       addTorchLight(scene, X, unit * 0.55, Z, 1.7);
     }
@@ -375,9 +530,9 @@ function createScene(canvas, opts = {}) {
 
   const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true });
   const scene = new BABYLON.Scene(engine);
-  scene.clearColor = new BABYLON.Color4(0.03, 0.02, 0.02, 1);
+  scene.clearColor = new BABYLON.Color4(0.05, 0.035, 0.025, 1);   // warm dungeon murk
 
-  const { widthPx, heightPx } = mapSize();
+  const { widthPx, heightPx, cols, rows } = mapSize();
   const worldW = widthPx * WORLD_SCALE, worldH = heightPx * WORLD_SCALE;
   const unit = TILE_PX * WORLD_SCALE;
 
@@ -412,13 +567,16 @@ function createScene(canvas, opts = {}) {
   // Ground plane (sized to the map) — pickable for click-to-walk
   const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: worldW, height: worldH }, scene);
   const gmat = new BABYLON.StandardMaterial('gmat', scene);
-  gmat.diffuseColor = new BABYLON.Color3(0.36, 0.29, 0.18);  // brighter dirt floor
+  gmat.diffuseTexture = surfaceTexture(scene, ASSETS.floor, () => groundTexture(scene, 'groundTex'), 'groundTex');
+  if (gmat.diffuseTexture.uScale !== undefined) { gmat.diffuseTexture.uScale = cols / 2; gmat.diffuseTexture.vScale = rows / 2; }
   gmat.specularColor = new BABYLON.Color3(0, 0, 0);
   ground.material = gmat;
 
   buildLevel(scene);
   const ambLight = buildLights(scene, opts.brightness);
   buildFireProps(scene);
+  buildMagicCircle(scene);
+  buildScatter(scene);
 
   const player = createKnight(scene);
   let _playerMoving = false, _playerFacing = 0;
@@ -446,13 +604,51 @@ function createScene(canvas, opts = {}) {
 
   const olin = createOlin(scene);
   buildOlinFurniture(scene);
-  const plate = new BABYLON.DynamicTexture('plate', { width: 256, height: 64 }, scene, false);
+  // Nameplate: two stacked lines like the old 2D label — name big, role small.
+  const plate = new BABYLON.DynamicTexture('plate', { width: 256, height: 128 }, scene, false);
   plate.hasAlpha = true;
-  plate.drawText('歐林【雜貨商】', null, 44, 'bold 28px sans-serif', '#f0d060', 'transparent', true);
+  {
+    const ctx = plate.getContext();
+    ctx.clearRect(0, 0, 256, 128);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f0d060';
+    ctx.font = 'bold 20px "Noto Sans TC", sans-serif';
+    ctx.fillText('歐林', 128, 20);
+    ctx.fillStyle = '#e8d5a0';
+    ctx.font = '16px "Noto Sans TC", sans-serif';
+    ctx.fillText('【雜貨商】', 128, 40);
+    plate.update(true);
+  }
   const plateMat = new BABYLON.StandardMaterial('plateMat', scene);
   plateMat.diffuseTexture = plate; plateMat.emissiveColor = new BABYLON.Color3(1, 1, 1); plateMat.opacityTexture = plate; plateMat.disableLighting = true; plateMat.backFaceCulling = false;
-  const plateMesh = BABYLON.MeshBuilder.CreatePlane('plateMesh', { width: TILE_PX*WORLD_SCALE*2.6, height: TILE_PX*WORLD_SCALE*0.65 }, scene);
+  const plateMesh = BABYLON.MeshBuilder.CreatePlane('plateMesh', { width: unit*2.6, height: unit*1.3 }, scene);
   plateMesh.material = plateMat; plateMesh.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL; plateMesh.isPickable = false;
+
+  // Dynamic "click to talk" prompt — hidden until the player is in range, then it
+  // bobs/pulses above the nameplate (toggled by sceneApi.setOlinHint).
+  const hintTex = new BABYLON.DynamicTexture('olinHint', { width: 256, height: 64 }, scene, false);
+  hintTex.hasAlpha = true;
+  {
+    const ctx = hintTex.getContext();
+    ctx.clearRect(0, 0, 256, 64);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#f0d060';
+    ctx.font = 'bold 24px "Noto Sans TC", sans-serif';
+    ctx.fillText('▼ 點擊交談', 128, 44);
+    hintTex.update(true);
+  }
+  const hintMat = new BABYLON.StandardMaterial('olinHintMat', scene);
+  hintMat.diffuseTexture = hintTex; hintMat.emissiveColor = new BABYLON.Color3(1, 1, 1); hintMat.opacityTexture = hintTex; hintMat.disableLighting = true; hintMat.backFaceCulling = false;
+  const hintMesh = BABYLON.MeshBuilder.CreatePlane('olinHintMesh', { width: unit*2.4, height: unit*0.6 }, scene);
+  hintMesh.material = hintMat; hintMesh.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL; hintMesh.isPickable = false; hintMesh.setEnabled(false);
+  const hintBaseY = unit * 2.7;   // floats above the two-line nameplate
+  scene.onBeforeRenderObservable.add(() => {
+    if (!hintMesh.isEnabled()) return;
+    const t = performance.now();
+    hintMesh.position.y = hintBaseY + Math.sin(t / 220) * unit * 0.18;
+    const s = 1 + Math.sin(t / 180) * 0.07;
+    hintMesh.scaling.set(s, s, s);
+  });
 
   scene.onPointerObservable.add((p) => {
     if (p.type !== BABYLON.PointerEventTypes.POINTERPICK) return;
@@ -507,7 +703,9 @@ function createScene(canvas, opts = {}) {
       const { X, Z } = logicToWorld(x, y);
       olin.root.position.set(X, 0, Z);
       plateMesh.position.set(X, TILE_PX * WORLD_SCALE * 1.9, Z);
+      hintMesh.position.set(X, hintBaseY, Z);
     },
+    setOlinHint: (visible) => { hintMesh.setEnabled(!!visible); if (!visible) hintMesh.scaling.set(1, 1, 1); },
     setNavPath,
     dispose: () => engine.dispose(),
     _internals: { scene, engine, camera, BABYLON },

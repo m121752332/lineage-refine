@@ -2,95 +2,83 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+> 本專案以**繁體中文**溝通；給使用者的結論／回饋請用繁體中文。程式碼、註解可維持英文。
 
-A browser-based Lineage Classic (天堂：經典版) game simulation focused on the equipment refining (精煉) system. Entirely static HTML/CSS/JS — no build step, no package manager, no server required.
+## 專案本質
 
-Open `index.html` (auto-redirects to `login.html`) in a browser to run. For development, use any local HTTP server to serve the files (required for `fetch('refine_rates.json')` to work):
+《天堂 Lineage》裝備精煉模擬器——**純前端**遊戲，無後端、無建置步驟。所有 `.html` 直接在瀏覽器執行，Vue 3 由 CDN 載入，遊戲狀態全存在 `localStorage`。
 
-```
+## 常用指令
+
+```bash
+# 啟動開發伺服器（會自動開瀏覽器，解析動態 port）
+node start.cjs              # 跨平台；Windows 亦可雙擊 start.bat，macOS/Linux 用 ./start.sh
+
+# 或直接起 server（Claude Code 預覽用的 launch.json 固定 5500 埠）
 npx serve .
+
+# 跑邏輯測試（Node 內建 test runner；全部 10 項應通過）
+node --test tests/nav3d.test.mjs
 ```
 
-## Architecture
+**務必透過 http 開啟，不要用 `file://`**：`refine_rates.json` 是執行期 `fetch` 的，`file://` 會觸發 CORS，機率會默默降級成程式內建預設值。`serve.json` 已設 `no-store` 避免開發時快取。
 
-All pages are self-contained HTML files with inline CSS and Vue 3 (loaded from CDN). State persists entirely via `localStorage` — there is no backend.
+## 關鍵限制（違反會壞）
 
-### Page Flow
+- **不可有建置步驟**：只能寫純瀏覽器相容 JS。不要引入 TypeScript、JSX、ES module bundler，或任何需要 transpile 的語法。
+- **`nav3d.js` 必須維持「無 DOM、無 Babylon」**：它是純邏輯，才能被 Node 測試 import，也才能維持邏輯／呈現分離。把 DOM 或 Babylon 寫進去會破壞測試與架構。
+- **`nav3d.js` / `scene3d.js` 以 classic `<script>` 全域載入**（各自 IIFE，只掛 `globalThis.Nav3D` / `globalThis.Scene3D`），不是 ES module。這是為了讓頁面連 `file://` 都能跑。載入順序固定：Babylon CDN → `nav3d.js` → `scene3d.js` → 頁面內 inline app。
+- **Vue 範本閃現**：`#app` 需保留 `v-cloak`（搭配 `[v-cloak]{display:none}` 與 `#preboot` 靜態載入層），否則掛載前 `{{ }}` 原始範本會外露。
 
-```
-index.html → login.html → lineage.html (main game)
-                              ├── cash_pay.html  (top-up)
-                              ├── setting.html   (Olin NPC config)
-                              └── refine_table.html (probability table)
-```
+## 場景的三層架構（最重要、需跨檔理解）
 
-### localStorage Keys
+3D 場景刻意拆成「邏輯／呈現／黏合」三層，改動時要分清楚責任歸屬：
 
-| Key | Contents |
-|-----|----------|
-| `lineage_player` | `{ name, gold, loggedIn, server, loginTime }` |
-| `lineage_inventory` | Array of item objects (100 slots) |
-| `lineage_config` | `{ maxEnhLevel, priceConfig: { weapon, armor, twdRate } }` |
+1. **`nav3d.js` — 純導航邏輯**
+   - `TILEMAP` 是**地圖的唯一真值來源**：A* 導航網格與 3D 牆面幾何「都」由它生成。要改地圖就改這個字串陣列。
+   - 圖例：`#`牆 `.`地板 `S`起點 `O`歐林 `C`營火 `t`火把 `P`柱子。外圈必為實牆、內部地板須連通。
+   - 提供：`walkable()`、A* `findPath()`（含視線平滑）、`canStep()` 碰撞、座標轉換。
+   - **無物理引擎**（見 `docs/adr/0002`）：碰撞用射線／網格判定即可。
 
-All pages guard against unauthenticated access by checking `lineage_player.loggedIn` in `onMounted`.
+2. **`scene3d.js` — 純 Babylon 呈現**
+   - `createScene(canvas, opts)` 回傳 `sceneApi`：`setPlayer`、`setOlin`、`setNavPath`、`setCameraMode`、`setBrightness`、`dispose`。
+   - 正交相機（2.5D 等角，俯角鎖定）；`cameraMode` 為 `'fixed'` | `'rotatable'`。
+   - 多盞點光源（火把／營火）以 `StandardMaterial` 逐像素打光，`maxSimultaneousLights=10`——放大時填充率成本高，是效能熱點。
 
-### Refine Rate Configuration
+3. **`lineage.html` — Vue app + 遊戲迴圈（黏合層）**
+   - 持有世界座標 `(wx, wy)`，`logicLoop` 每幀以 `nav3d` 算移動／尋路，再透過 `sceneApi` 餵位置給 `scene3d`。
+   - 移動採 **delta-time**：`_moveStep = SPEED × dtFactor`，FPS 起伏時實際速度不變（夾上限避免穿牆）。
 
-Success rates live in [`refine_rates.json`](refine_rates.json). `refine_table.html` fetches it at runtime with a fallback to hardcoded values if the fetch fails (needs HTTP server). `lineage.html` loads its rates from the same JSON at startup.
+**座標系**：邏輯像素 `(wx,wy)`（以 `TILE_PX=40` 的 tilemap 為準）對上 Babylon 世界單位（`WORLD_SCALE=0.04`、地圖以原點為中心、邏輯南方 = `-Z`）。兩者以 `logicToWorld` / `worldToLogic` 互轉。
 
-Rate entries use `{ from, to, base, safe }` where `base` is a percentage (0–100, supports 6 decimal places). Scroll bonuses add to `base` and are clamped to 100.
+## 資料層（localStorage）
 
-- Weapon safe zone: +0–+5 (safe_level = 6)
-- Armor safe zone: +0–+3 (safe_level = 4)
-- Enhancement cost formula: `500 * 2^currentLevel` (天幣)
+| Key | 內容 |
+|-----|------|
+| `lineage_player` | `{name, gold, server, loggedIn, loginTime}` |
+| `lineage_inventory` | 100 格陣列，索引即格位；物品 `type`：`weapon`/`armor`/`scroll_weapon`/`scroll_armor`/消耗品 |
+| `lineage_config` | `{maxEnhLevel, brightness, cameraMode, priceConfig:{weapon, armor, twdRate}}` |
 
-### lineage.html Structure
+- **每個頁面在 `onMounted` 檢查 `lineage_player.loggedIn`**，未登入強制導回 `login.html`。
+- 寫 `lineage_config` 時用 `...prev` 展開保留既有欄位，避免不同頁互相覆寫（例如 `cameraMode`）。
 
-The main game file (~1900 lines) is a single Vue 3 `createApp` with all game logic inline:
+## 頁面流程
 
-- **Canvas rendering**: NPC map scene drawn on `<canvas id="gameCanvas">`
-- **Inventory**: 100-slot grid, item types: `weapon`, `armor`, `scroll_weapon`, `scroll_armor`, consumables
-- **Hammer mode** (`hammerMode`): cursor-based UX where clicking a scroll activates hammer mode; player then clicks an inventory slot to apply the scroll
-- **Olin shop** (`ui.shop`): buy items and sell back refined equipment at list/custom prices
-- **Enhance panel** (`ui.enhance`): direct enhancement without scroll, or triggered by hammer mode
-- **Result modal** (`result`): full-screen overlay for success/fail/boom outcomes
+`index.html` →（轉址）`login.html` → `lineage.html`（主遊戲）。主遊戲再開：`cash_pay.html`（儲值）、`refine_table.html`（機率表，新分頁）、`logout.html`（片尾）。
 
-### CSS Design System
+**設定頁特例**：`lineage.html` 的「⚙ 配置」以 **iframe** 嵌入 `setting.html`（不跳頁，3D 場景保留在背後）。`setting.html` 偵測自己是否被嵌入（`window.self !== window.top`）：嵌入時用 `postMessage`（`lineage-setting-saved` / `lineage-setting-live`）與父頁溝通做即時預覽與存檔後關閉，獨立開啟時則維持原本整頁跳轉行為。`lineage.html` 內另保有一套 hardcode 的子面板當退路。
 
-All pages share the same CSS variable palette:
+## 精煉系統
 
-```css
---gold: #c8a84b   /* primary gold */
---gold2: #f0d060  /* bright gold / headings */
---panel: #150e06  /* dark panel background */
---border: #6a4420 /* panel borders */
---text: #e8d5a0   /* body text */
-```
+機率資料與程式分離：`refine_rates.json`（執行期 fetch，失敗則用內建預設）。規格詳見 `docs/06_refine_system.md`。重點：`base` 基礎成功率、`safe` 安定範圍內固定 100%、卷軸 `scroll_bonus` 直接疊加並 clamp 至 100；強化費用 `500 × 2^當前等級`。
 
-### Docs
+## 設計文件與詞彙
 
-Design reference documents are in [`docs/`](docs/) (Chinese). Key files:
-- [`06_refine_system.md`](docs/06_refine_system.md) — refining mechanics spec (authoritative)
-- [`04_topup_system.md`](docs/04_topup_system.md) — top-up / exchange rate design
-- [`05_inventory_design.md`](docs/05_inventory_design.md) — inventory and item spec
+- `README.md`：完整功能與資料層說明。
+- `CONTEXT.md`：場景／相機的統一詞彙（Scene vs Map、Fixed/Rotatable view、Character/Knight、NPC/Olin）——命名請遵循。
+- `docs/`：中文設計規格（`06_refine_system.md` 最關鍵）。
+- `docs/adr/`：架構決策（0001 改用 Babylon 3D；0002 在 3D 重建導航、不上物理引擎）。
 
-## Key Constraints
+## UI 慣例
 
-- No transpilation or bundling — all code must be valid vanilla JS/HTML/CSS that runs directly in the browser.
-- Vue 3 is loaded from CDN (`vue.global.prod.min.js`). Use the Options-free Composition API (`setup()` pattern) consistent with existing pages.
-- `refine_rates.json` must be fetched over HTTP; opening HTML files directly (`file://`) will cause CORS errors on that fetch.
-
-## Agent skills
-
-### Issue tracker
-
-Issues live in GitHub Issues on m121752332/lineage-refine; external PRs are also a triage surface. See `docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-Uses default label vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context layout — one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+所有頁面共用同一組 CSS 變數（`--gold #c8a84b`、`--gold2 #f0d060`、`--panel #150e06`、`--border #6a4420`、`--text #e8d5a0`、`--red`、`--green`），維持天堂沙漠風主題。

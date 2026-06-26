@@ -5,27 +5,30 @@
 const TILE_PX = 40;
 
 // Legend: # wall  . floor  S start  O olin  C campfire  t torch  P pillar
-// Outer ring is solid wall. Interior floor is contiguous (blocks are detached),
-// guaranteeing connectivity. Player starts at the map centre (S). Olin occupies a
-// larger walled study in the top-right, entered through a single downward opening.
+// Open interior split by SINGLE-tile divider walls into three connected bands
+// (bottom hall -> middle -> top), joined by left/right offset doorways so the
+// route to Olin takes ~3 turns. Olin occupies a large enclosed top-right room
+// (8x4, left wall col14 + lintel row5) entered through an inverted-U (⊓) doorway:
+// the 2-wide opening at cols17-18 row5, flanked by posts at cols16/19. All floor
+// is contiguous.
 const TILEMAP = [
   '########################',
-  '#...........#..........#',
-  '#...........#....O.....#',
-  '#...........#..........#',
-  '#......t....#....t.....#',
-  '#...........#..........#',
-  '#...........######.#####',
+  '#.......t..#...........#',
+  '#..........#...........#',
+  '#.....P....#.....O.....#',
+  '#..........#P.C........#',
+  '#..........#...........#',
+  '#..........#...........#',
+  '#...############t..t####',
+  '#.............P........#',
   '#......................#',
-  '#........C.............#',
-  '#..........S...........#',
-  '#..t..####....####..t..#',
+  '#......#...............#',
+  '#......#############...#',
+  '#t.....t...PP......#...#',
+  '#.........S........#...#',
+  '#..............#####...#',
   '#......................#',
-  '#...##......PP......##.#',
   '#......................#',
-  '#..t..####....####..t..#',
-  '#......................#',
-  '#....PP........PP......#',
   '########################',
 ];
 

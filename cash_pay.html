@@ -199,6 +199,10 @@ createApp({
 
     const coinsToGet = computed(() => Math.max(0, (twd.value || 0) * twdRate.value));
 
+    // 是否被 lineage.html 以 iframe 嵌入；嵌入時改用 postMessage 與父頁溝通，不做整頁跳轉
+    const embedded = window.self !== window.top;
+    function notifyParent(type) { try { window.parent.postMessage({ type }, '*'); } catch (e) {} }
+
     function fmtGold(n) { return Math.floor(n || 0).toLocaleString(); }
     function onInputChange() {
       twd.value = Math.min(100000, Math.max(1, twd.value || 1));
@@ -229,9 +233,15 @@ createApp({
       localStorage.setItem('lineage_player', JSON.stringify(player));
       currentGold.value = player.gold;
       showToast(`💳 儲值成功！+${fmtGold(coins)} 天幣`, 'var(--gold)');
+      // 嵌入模式：通知父頁刷新天幣顯示（面板不關，可連續儲值）
+      if (embedded) notifyParent('lineage-gold-changed');
     }
 
-    function goBack() { window.location.href = 'lineage.html'; }
+    function goBack() {
+      // 嵌入模式：通知父頁關閉覆蓋層（不跳轉，3D 場景保留在背後）
+      if (embedded) { notifyParent('lineage-frame-close'); return; }
+      window.location.href = 'lineage.html';
+    }
 
     return { charName, currentGold, twdRate, twd, presets, coinsToGet, toast, fmtGold, onInputChange, doTopup, goBack };
   }
