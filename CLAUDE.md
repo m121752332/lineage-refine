@@ -62,8 +62,8 @@ node --test tests/nav3d.test.mjs
 
 | Key | 內容 |
 |-----|------|
-| `lineage_player` | `{name, gold, server, loggedIn, loginTime}` |
-| `lineage_inventory` | 100 格陣列，索引即格位；物品 `type`：`weapon`/`armor`/`scroll_weapon`/`scroll_armor`/消耗品 |
+| `lineage_player` | `{name, gold, server, loggedIn, loginTime, invSize}`；`invSize`＝背包容量（預設 100，歐林購買 +100/1000 萬天幣，上限 1000） |
+| `lineage_inventory` | 陣列長度＝`invSize`（初始 100 格），索引即格位；物品 `type`：`weapon`/`armor`/`scroll_weapon`/`scroll_armor`/消耗品 |
 | `lineage_config` | `{maxEnhLevel, brightness, cameraMode, priceConfig:{weapon, armor, twdRate}}` |
 
 - **每個頁面在 `onMounted` 檢查 `lineage_player.loggedIn`**，未登入強制導回 `login.html`。
@@ -78,6 +78,8 @@ node --test tests/nav3d.test.mjs
 ## 精煉系統
 
 機率資料與程式分離：`assets/data/refine_rates.json`（執行期 fetch，失敗則用內建預設）。規格詳見 `docs/06_refine_system.md`。重點：`base` 基礎成功率、`safe` 安定範圍內固定 100%、卷軸 `scroll_bonus` 直接疊加並 clamp 至 100；強化費用 `500 × 2^當前等級`。
+
+強化裝備顯示格式統一為「+N 名稱」（`displayName()` helper，勿再手組 `名稱+N`）。**整批衝裝工具**（見 `docs/adr/0003`）：背包工具列 checkbox 觸發、卷軸鐵鎚流程的 modal 子模式，機率複用 `isSafe()`/`successRate()`；每次嘗試消耗 1 張同變體卷軸、免強化費；詛咒卷軸排除（落回單把流程）。
 
 ## 設計文件與詞彙
 
