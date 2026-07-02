@@ -421,8 +421,41 @@ canvas{display:block;}
 .particle{position:absolute;border-radius:50%;animation:particleFall 1.5s ease-in forwards;}
 @keyframes particleFall{0%{transform:translateY(0) scale(1);opacity:1;}100%{transform:translateY(200px) scale(0);opacity:0;}}
 
+/* ===== 整批衝裝工具 ===== */
+.batch-modal{
+  width:300px;background:var(--panel);border:2px solid var(--border);
+  display:flex;flex-direction:column;max-height:92vh;
+}
+.batch-body{padding:10px 12px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;}
+.batch-stage-label{
+  color:var(--gold2);font-size:12px;font-weight:700;letter-spacing:1px;
+  border-left:3px solid var(--gold);padding-left:6px;
+}
+.batch-grid-wrap{height:262px;overflow-y:auto;border:1px solid var(--border);background:rgba(0,0,0,0.25);}
+.batch-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:4px;}
+.batch-cell{
+  aspect-ratio:1;background:var(--panel2);border:1px solid #3a2510;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;position:relative;font-size:17px;
+}
+.batch-cell:hover{border-color:var(--gold);}
+.batch-cell.sel{border-color:var(--gold2);background:rgba(90,58,26,0.5);}
+.batch-cell.done{border-color:#44cc66;}
+.batch-cell.destroyed{opacity:0.35;cursor:default;}
+.batch-cell.active{border-color:var(--gold2);animation:batchGlow 0.5s ease-in-out infinite;}
+@keyframes batchGlow{
+  0%,100%{box-shadow:0 0 4px rgba(240,208,96,0.4);}
+  50%{box-shadow:0 0 14px rgba(240,208,96,0.95);background:rgba(120,80,30,0.55);}
+}
+.batch-summary{
+  color:var(--text);font-size:13px;line-height:1.6;padding:8px;
+  border:1px dashed var(--border);background:rgba(0,0,0,0.3);
+}
+.batch-toggle{color:var(--gold);font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none;}
+.inv-btn:disabled{opacity:0.4;cursor:not-allowed;}
+
 /* ===== 天堂風格強化 ===== */
-.shop-panel,.inventory-panel,.enhance-panel,.buy-modal{
+.shop-panel,.inventory-panel,.enhance-panel,.buy-modal,.batch-modal{
   box-shadow:0 0 0 1px var(--border2),0 0 40px rgba(0,0,0,0.9),var(--panel-glow);
   background:linear-gradient(180deg,#1c1408 0%,#120c04 100%);
 }
@@ -761,6 +794,71 @@ canvas{display:block;}
       </div>
     </div>
 
+    <!-- 整批衝裝工具 -->
+    <div v-if="batch.show" class="buy-modal-mask">
+      <div class="batch-modal">
+        <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;">
+          <span class="panel-title">整批衝裝工具</span>
+          <button class="panel-close" @click="closeBatch">✕</button>
+        </div>
+        <div class="batch-body">
+          <template v-if="batch.phase==='select'">
+            <div class="batch-stage-label">階段 1｜待處理（點選裝備，SHIFT 可範圍多選）</div>
+            <div class="batch-grid-wrap">
+              <div class="batch-grid">
+                <div v-for="(c,idx) in batch.candidates" :key="idx" class="batch-cell"
+                  :class="{sel:c.selected}" :title="displayName(c.item)"
+                  @click="onBatchCandClick(idx,$event)">
+                  <img v-if="c.item.svgIcon" :src="c.item.svgIcon" width="28" height="28" style="image-rendering:crisp-edges;display:block;"/>
+                  <span v-else>{{c.item.icon}}</span>
+                  <span v-if="c.item.enhance>0" class="enhance-badge">+{{c.item.enhance}}</span>
+                </div>
+              </div>
+            </div>
+            <div class="batch-stage-label">階段 2｜指定裝備等級</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <select v-model.number="batch.targetLevel">
+                <option v-for="lv in maxEnhLevel" :key="lv" :value="lv">+{{lv}}</option>
+              </select>
+              <span style="color:#888;font-size:12px;">已選擇 {{batchSelectedCount}} 件</span>
+            </div>
+            <div class="batch-stage-label">階段 3｜衝裝處理</div>
+            <button class="inv-btn gold-btn" style="margin-bottom:0;" :disabled="batchSelectedCount===0" @click="startBatchRefine">
+              ▶ 開始（載入 {{batchSelectedCount}} 件已選擇裝備）
+            </button>
+          </template>
+          <template v-else>
+            <div class="batch-stage-label">階段 3｜衝裝處理（目標 +{{batch.targetLevel}}）</div>
+            <div class="batch-grid-wrap">
+              <div class="batch-grid">
+                <div v-for="(c,idx) in batch.cells" :key="idx" class="batch-cell"
+                  :class="{active:batch.cursor===idx&&batch.phase==='running',done:c.status==='done',destroyed:c.status==='destroyed'}"
+                  :title="c.status==='destroyed'?'已化為粉末':displayName(c.item)">
+                  <template v-if="c.status==='destroyed'"><span>💨</span></template>
+                  <template v-else>
+                    <img v-if="c.item.svgIcon" :src="c.item.svgIcon" width="28" height="28" style="image-rendering:crisp-edges;display:block;"/>
+                    <span v-else>{{c.item.icon}}</span>
+                    <span v-if="c.item.enhance>0" class="enhance-badge">+{{c.item.enhance}}</span>
+                  </template>
+                </div>
+              </div>
+            </div>
+            <div style="font-size:12px;color:#888;">
+              剩餘{{batch.target==='weapon'?'武器':'防具'}}卷軸：{{batchScrollsLeft}} 張
+              <span v-if="batch.phase==='running'" style="color:var(--gold);">│ 精煉進行中…</span>
+            </div>
+            <template v-if="batch.phase==='done'">
+              <div class="batch-summary">
+                有 {{batch.stats.total}} 件裝備經過精煉，{{batch.stats.done}} 件通過裝備精煉，變成粉末的有 {{batch.stats.destroyed}} 件。
+                <span v-if="batch.stopReason==='no_scrolls'" style="color:var(--red);">（卷軸用盡，{{batch.stats.unfinished}} 件未完成）</span>
+              </div>
+              <button class="inv-btn gold-btn" style="margin-bottom:0;" @click="returnBatchToInventory">回到背包</button>
+            </template>
+          </template>
+        </div>
+      </div>
+    </div>
+
     <!-- 游標跟隨提示 -->
     <div v-if="hammerMode.active && cursorPos.visible" class="hammer-cursor-tip"
       :style="{left:cursorPos.x+'px', top:cursorPos.y+'px'}">
@@ -787,6 +885,9 @@ canvas{display:block;}
             <option value="enhance">依強化等級</option>
           </select>
           <button class="inv-reorg-btn" @click="reorganize" title="依目前排序壓實格子、移除空格">🧹 重整</button>
+          <label class="batch-toggle" title="勾選後，點擊卷軸將開啟整批衝裝工具">
+            <input type="checkbox" v-model="batchMode"> 整批衝裝
+          </label>
         </div>
         <div class="stats">
           物品：<span>{{ totalItems }}</span> 件
@@ -824,8 +925,8 @@ canvas{display:block;}
             {{selItem.blessed?'🌟 祝福卷軸：成功+1或+2（各50%）':selItem.cursed?'💀 詛咒卷軸：成功反-1，失敗必爆炸':'📜 普通卷軸：成功固定+1，失敗直接爆炸'}}
           </div>
           <div style="color:var(--gold);font-size:12px;padding:5px 8px;border:1px dashed var(--border);text-align:center;cursor:pointer;"
-            @click="activateHammer(selItem.type==='scroll_weapon'?'weapon':'armor')">
-            🔨 點此啟動鐵鎚，再敲{{selItem.type==='scroll_weapon'?'武器':'防具'}}格子
+            @click="onScrollUse">
+            {{batchMode && !selItem.cursed ? '⚒ 點此開啟整批衝裝工具' : '🔨 點此啟動鐵鎚，再敲'+(selItem.type==='scroll_weapon'?'武器':'防具')+'格子'}}
           </div>
         </div>
       </div>
@@ -954,6 +1055,22 @@ createApp({
     const buyModal=reactive({show:false,item:null,qty:1});
     // 鐵鎚模式
     const hammerMode=reactive({active:false,scrollIdx:-1,target:'',scrollName:'',isCursed:false,isBlessed:false});
+    // 整批衝裝工具（見 docs/adr/0003）
+    const batchMode=ref(false);            // 背包工具列觸發器，預設不勾
+    const batch=reactive({
+      show:false,
+      phase:'select',                      // 'select' | 'running' | 'done'
+      target:'weapon',                     // 由觸發卷軸決定
+      scrollId:'',scrollName:'',isBlessed:false,   // 消耗卷軸的變體識別
+      candidates:[],                       // 階段1 [{item(複製),invIdx,selected}]
+      lastClicked:-1,                      // SHIFT 範圍選取錨點
+      targetLevel:1,                       // 階段2 目標等級
+      cells:[],                            // 階段3 [{item,status:'pending'|'done'|'destroyed'}]
+      cursor:-1,                           // 當前高亮格
+      stats:{total:0,done:0,destroyed:0,unfinished:0},
+      stopReason:'',                       // '' | 'no_scrolls'
+    });
+    let batchTimer=null;                   // setTimeout 自排鏈（非 setInterval，避免重疊）
     // 強化結果彈窗
     const result=reactive({show:false,type:'success',desc:''});
     // 游標浮動位置
@@ -1294,9 +1411,152 @@ createApp({
       }
       selSlot.value = selSlot.value===i ? null : i;
       if(slot && (slot.type==='scroll_weapon'||slot.type==='scroll_armor')){
+        if(batchMode.value && !slot.cursed){ openBatchRefine(slot); return; }
+        if(batchMode.value && slot.cursed) showToast('詛咒卷軸無法用於整批衝裝，改走單把流程','var(--red)');
         const target=slot.type==='scroll_weapon'?'weapon':'armor';
         activateHammer(target, i);
       }
+    }
+
+    // ─── 整批衝裝工具 ───
+    // 卷軸詳細面板入口：勾選整批模式時開工具，否則走原本鐵鎚流程
+    function onScrollUse(){
+      const sc=selItem.value;
+      if(!sc)return;
+      if(batchMode.value && !sc.cursed){ openBatchRefine(sc); return; }
+      activateHammer(sc.type==='scroll_weapon'?'weapon':'armor');
+    }
+    function openBatchRefine(sc){
+      const target=sc.type==='scroll_weapon'?'weapon':'armor';
+      const cands=[];
+      inventory.value.forEach((it,i)=>{
+        if(it&&it.type===target) cands.push({item:{...it},invIdx:i,selected:false});
+      });
+      if(!cands.length){showToast(`背包中沒有可衝裝的${target==='weapon'?'武器':'防具'}！`,'var(--red)');return;}
+      cancelHammer();
+      batch.phase='select';
+      batch.target=target;
+      batch.scrollId=sc.id;
+      batch.scrollName=sc.name;
+      batch.isBlessed=sc.blessed||false;
+      batch.candidates=cands;
+      batch.lastClicked=-1;
+      batch.targetLevel=maxEnhLevel.value;
+      batch.cells=[];
+      batch.cursor=-1;
+      batch.stats={total:0,done:0,destroyed:0,unfinished:0};
+      batch.stopReason='';
+      batch.show=true;
+      selSlot.value=null;
+    }
+    const batchSelectedCount=computed(()=>batch.candidates.filter(c=>c.selected).length);
+    const batchScrollsLeft=computed(()=>{
+      let n=0;
+      for(const s of inventory.value){ if(s&&s.id===batch.scrollId) n+=(s.count||1); }
+      return n;
+    });
+    // 階段1：點選 toggle；SHIFT+點選 → 錨點到此格範圍全選（只選不反選）
+    function onBatchCandClick(idx,ev){
+      if(batch.phase!=='select')return;
+      if(ev.shiftKey&&batch.lastClicked>=0){
+        const a=Math.min(batch.lastClicked,idx),b=Math.max(batch.lastClicked,idx);
+        for(let k=a;k<=b;k++) batch.candidates[k].selected=true;
+      } else {
+        batch.candidates[idx].selected=!batch.candidates[idx].selected;
+      }
+      batch.lastClicked=idx;
+    }
+    // 階段3：載入已選裝備（自背包移出），啟動 500ms 輪巡
+    function startBatchRefine(){
+      const sel=batch.candidates.filter(c=>c.selected);
+      if(!sel.length){showToast('尚未選擇任何裝備！','var(--red)');return;}
+      for(const c of sel) inventory.value[c.invIdx]=null;
+      batch.cells=sel.map(c=>({
+        item:{...c.item},
+        status:c.item.enhance>=batch.targetLevel?'done':'pending',  // 已達標 → 直接通過（0 次嘗試）
+      }));
+      batch.stats={
+        total:batch.cells.length,
+        done:batch.cells.filter(c=>c.status==='done').length,
+        destroyed:0,unfinished:0,
+      };
+      batch.cursor=-1;
+      batch.phase='running';
+      batchTimer=setTimeout(batchStep,500);
+    }
+    // 消耗一張與觸發卷軸同變體的卷軸；無存貨回傳 false
+    function consumeBatchScroll(){
+      const idx=inventory.value.findIndex(s=>s&&s.id===batch.scrollId);
+      if(idx<0)return false;
+      const sc=inventory.value[idx];
+      if((sc.count||1)<=1) inventory.value[idx]=null;
+      else inventory.value[idx]={...sc,count:(sc.count||1)-1};
+      return true;
+    }
+    // 輪巡：游標循環掃 pending 格，每格每輪精煉一次（免強化費，機率同單把）
+    function batchStep(){
+      batchTimer=null;
+      const n=batch.cells.length;
+      let next=-1;
+      for(let k=1;k<=n;k++){
+        const i=(batch.cursor+k)%n;
+        if(batch.cells[i].status==='pending'){next=i;break;}
+      }
+      if(next<0){finishBatch('');return;}
+      if(!consumeBatchScroll()){finishBatch('no_scrolls');return;}
+      batch.cursor=next;
+      const cell=batch.cells[next];
+      const rate=successRate(cell.item, batch.isBlessed?20:0);
+      if(Math.random()*100<rate){
+        const jump=(batch.isBlessed&&Math.random()<0.5)?2:1;
+        cell.item.enhance=Math.min(batch.targetLevel,cell.item.enhance+jump);  // 祝福+2 clamp 至目標
+        if(cell.item.enhance>=batch.targetLevel){
+          cell.status='done';
+          batch.stats.done++;
+          addMsg(`✨ 整批衝裝：${displayName(cell.item)} 達標`,'gold');
+        }
+      } else if(!isSafe(cell.item)){
+        cell.status='destroyed';
+        batch.stats.destroyed++;
+        addMsg(`💥 整批衝裝：${displayName(cell.item)} 化為粉末`,'red');
+      }
+      nextTick(()=>{
+        const el=document.querySelector('.batch-grid-wrap .batch-cell.active');
+        if(el&&el.scrollIntoView) el.scrollIntoView({block:'nearest'});
+      });
+      batchTimer=setTimeout(batchStep,500);
+    }
+    function finishBatch(reason){
+      if(batchTimer){clearTimeout(batchTimer);batchTimer=null;}
+      batch.stopReason=reason;
+      batch.stats.unfinished=batch.cells.filter(c=>c.status==='pending').length;
+      batch.cursor=-1;
+      batch.phase='done';
+      if(reason==='no_scrolls') addMsg('⚠ 整批衝裝：卷軸用盡，流程中止','red');
+    }
+    // 存活裝備（通過＋未完成）收回背包空格；格子不足則保留視窗避免裝備遺失
+    function returnBatchToInventory(){
+      const survivors=batch.cells.filter(c=>c.status!=='destroyed');
+      for(const c of survivors){
+        if(c.returned)continue;
+        const slot=inventory.value.findIndex(s=>s===null);
+        if(slot<0)break;
+        inventory.value[slot]={...c.item};
+        c.returned=true;
+      }
+      const remaining=survivors.filter(c=>!c.returned).length;
+      if(remaining>0){showToast(`背包空間不足，尚有 ${remaining} 件未收回！`,'var(--red)');return;}
+      addMsg(`🎒 整批衝裝結束：${batch.stats.done} 件通過、${batch.stats.destroyed} 件化為粉末，裝備已收回背包`,'gold');
+      resetBatch();
+    }
+    function resetBatch(){
+      batch.show=false;batch.phase='select';
+      batch.candidates=[];batch.cells=[];batch.cursor=-1;batch.lastClicked=-1;
+    }
+    function closeBatch(){
+      if(batch.phase==='running'){showToast('精煉進行中，無法關閉','var(--red)');return;}
+      if(batch.phase==='done'){returnBatchToInventory();return;}  // 結算後關閉＝收回裝備，不遺失
+      resetBatch();
     }
 
     // ─── 鐵鎚模式 ───
@@ -1633,6 +1893,7 @@ createApp({
         if(e.key==='i'||e.key==='I')ui.inventory=!ui.inventory;
         if(e.key==='Escape'){
           if(hammerMode.active){cancelHammer();return;}
+          if(batch.show){closeBatch();return;}
           dialog.show=false;ui.shop=false;ui.enhance=false;
         }
       });
@@ -1766,6 +2027,8 @@ createApp({
       maxEnhLevel,
       openBuy,confirmBuy,sellItem,openEnhance,doEnhance,
       activateHammer,cancelHammer,hammerClick,closeInventory,onSlotClick,
+      batchMode,batch,batchSelectedCount,batchScrollsLeft,
+      onScrollUse,onBatchCandClick,startBatchRefine,returnBatchToInventory,closeBatch,
       isSafe,successRate,scrollBonus,enhCost,sellPrice,fmt,displayName,
       getListPrice,getActualSellPrice,
       selectOlinSell,doOlinSell,
