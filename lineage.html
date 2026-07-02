@@ -1483,7 +1483,7 @@ createApp({
       };
       batch.cursor=-1;
       batch.phase='running';
-      batchTimer=setTimeout(batchStep,500);
+      batchTimer=setTimeout(batchStep,100);
     }
     // 消耗一張與觸發卷軸同變體的卷軸；無存貨回傳 false
     function consumeBatchScroll(){
@@ -1494,6 +1494,7 @@ createApp({
       else inventory.value[idx]={...sc,count:(sc.count||1)-1};
       return true;
     }
+
     // 輪巡：游標循環掃 pending 格，每格每輪精煉一次（免強化費，機率同單把）
     function batchStep(){
       batchTimer=null;
@@ -1525,7 +1526,7 @@ createApp({
         const el=document.querySelector('.batch-grid-wrap .batch-cell.active');
         if(el&&el.scrollIntoView) el.scrollIntoView({block:'nearest'});
       });
-      batchTimer=setTimeout(batchStep,500);
+      batchTimer=setTimeout(batchStep,100);
     }
     function finishBatch(reason){
       if(batchTimer){clearTimeout(batchTimer);batchTimer=null;}
