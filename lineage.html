@@ -676,7 +676,7 @@ canvas{display:block;}
             @click="selectOlinSell('weapon',lv)">
             <div class="item-icon" style="font-size:16px;">⚔</div>
             <div class="sell-lv-badge">+{{lv}}</div>
-            <div style="flex:1;color:var(--text);font-size:12px;">大馬士革刀 +{{lv}}</div>
+            <div style="flex:1;color:var(--text);font-size:12px;">+{{lv}} 大馬士革刀</div>
             <div class="sell-price-col">
               <div v-if="getActualSellPrice('weapon',lv)>getListPrice('weapon',lv)" class="sell-list-price">牌價 {{fmt(getListPrice('weapon',lv))}}</div>
               <div class="sell-actual-price">{{fmt(getActualSellPrice('weapon',lv))}} 天幣</div>
@@ -689,7 +689,7 @@ canvas{display:block;}
             @click="selectOlinSell('armor',lv)">
             <div class="item-icon" style="font-size:16px;">🧥</div>
             <div class="sell-lv-badge">+{{lv}}</div>
-            <div style="flex:1;color:var(--text);font-size:12px;">隱身斗篷 +{{lv}}</div>
+            <div style="flex:1;color:var(--text);font-size:12px;">+{{lv}} 隱身斗篷</div>
             <div class="sell-price-col">
               <div v-if="getActualSellPrice('armor',lv)>getListPrice('armor',lv)" class="sell-list-price">牌價 {{fmt(getListPrice('armor',lv))}}</div>
               <div class="sell-actual-price">{{fmt(getActualSellPrice('armor',lv))}} 天幣</div>
@@ -701,7 +701,7 @@ canvas{display:block;}
         <div class="buyback-footer">
           <template v-if="olinSellSelect.type">
             <span style="color:var(--text);font-size:12px;">
-              {{olinSellSelect.type==='weapon'?'⚔ 大馬士革刀':'🛡 隱身斗篷'}} +{{olinSellSelect.lv}}
+              {{olinSellSelect.type==='weapon'?'⚔':'🛡'}} +{{olinSellSelect.lv}} {{olinSellSelect.type==='weapon'?'大馬士革刀':'隱身斗篷'}}
             </span>
             <span style="color:var(--gold2);font-size:13px;font-weight:700;flex:1;">
               → {{fmt(getActualSellPrice(olinSellSelect.type,olinSellSelect.lv))}} 天幣
@@ -800,7 +800,7 @@ canvas{display:block;}
             selected: selSlot===i && !hammerMode.active,
             'hammer-target': hammerMode.active && slot && slot.type===hammerMode.target && slot.enhance<maxEnhLevel
           }"
-          :title="hammerMode.active && slot && slot.type===hammerMode.target ? '🔨 點擊強化 '+slot.name : ''"
+          :title="hammerMode.active && slot && slot.type===hammerMode.target ? '🔨 點擊強化 '+displayName(slot) : ''"
           @click="onSlotClick(i)">
           <template v-if="slot">
             <img v-if="slot.svgIcon" :src="slot.svgIcon" :width="slot.enhance>0?31:38" :height="slot.enhance>0?31:38" style="image-rendering:crisp-edges;display:block;"/>
@@ -813,7 +813,7 @@ canvas{display:block;}
       </div><!-- /inv-grid-wrap -->
       <div v-if="selItem" class="inv-detail">
         <div style="color:var(--gold2);font-size:14px;font-weight:700;">
-          {{selItem.name}}<span v-if="selItem.enhance>0" style="color:var(--gold)"> +{{selItem.enhance}}</span>
+          <span v-if="selItem.enhance>0" style="color:var(--gold)">+{{selItem.enhance}} </span>{{selItem.name}}
         </div>
         <div style="color:#777;font-size:13px;margin-top:3px;">{{selItem.desc}}</div>
         <div v-if="selItem.type==='weapon'||selItem.type==='armor'" style="color:var(--text);font-size:13px;margin-top:5px;">
@@ -1158,6 +1158,8 @@ createApp({
 
     // ─── 工具函數 ───
     function fmt(n){return n.toLocaleString();}
+    // 統一顯示格式：等級在前，如「+10 大馬士革刀」
+    function displayName(it){if(!it)return '';return it.enhance>0?`+${it.enhance} ${it.name}`:it.name;}
     function addMsg(text,type='white'){
       // 只有在已貼近底部時才自動捲動，避免打斷使用者往上翻閱歷史訊息
       const el=msgLog.value;
@@ -1270,7 +1272,7 @@ createApp({
       if(!selItem.value)return;
       const it=selItem.value,p=sellPrice(it);
       gold.value+=p;
-      addMsg(`出售：${it.name}${it.enhance>0?'+'+it.enhance:''}，+${fmt(p)} 天幣`,'green');
+      addMsg(`出售：${displayName(it)}，+${fmt(p)} 天幣`,'green');
       const slot=selSlot.value;
       const itCopy=it;
       if((itCopy.count||1)>1){
@@ -1364,7 +1366,7 @@ createApp({
       const bonus=isBlessed?20:isCursed?40:0;
       const rate=successRate(it,bonus);
       const roll=Math.random()*100;
-      const itemName=it.name;
+      const itemName=displayName(it);   // 精煉前快照，含「+N 」前綴
       const oldLv=it.enhance;
       const safe=isSafe(it);
 
@@ -1373,10 +1375,10 @@ createApp({
           const newLv=Math.max(0,oldLv-1);
           inventory.value[equipIdx]={...it,enhance:newLv};
           showResult('fail',
-            `<span style="color:#cc44cc">+${oldLv}【${itemName}】</span>承受詛咒力量<br>` +
+            `<span style="color:#cc44cc">【${itemName}】</span>承受詛咒力量<br>` +
             `精煉值從 <b>+${oldLv}</b> 倒退回 <b style="color:#ff4444">+${newLv}</b>！`
           );
-          addMsg(`💀 詛咒倒扣！${itemName}+${oldLv} → +${newLv}`,'purple');
+          addMsg(`💀 詛咒倒扣！${itemName} → +${newLv}`,'purple');
         } else if(isBlessed){
           const jump=Math.random()<0.5?2:1;
           const newLv=Math.min(maxEnhLevel.value,oldLv+jump);
@@ -1388,7 +1390,7 @@ createApp({
               ? `<br><span style="color:#44ffaa">✦ 祝福加持，一口氣躍升 +2！</span>`
               : `<br><span style="color:var(--gold)">精煉 +1 成功</span>`)
           );
-          addMsg(`✨ 祝福精煉！${itemName} +${oldLv} → +${newLv}${jump===2?' ⬆+2!':''}`,'gold');
+          addMsg(`✨ 祝福精煉！${itemName} → +${newLv}${jump===2?' ⬆+2!':''}`,'gold');
         } else {
           const newLv=Math.min(maxEnhLevel.value,oldLv+1);
           inventory.value[equipIdx]={...it,enhance:newLv};
@@ -1404,10 +1406,10 @@ createApp({
           inventory.value[equipIdx]=null;
           if(equipIdx===selSlot.value) selSlot.value=null;
           showResult('boom',
-            `+${oldLv}<span style="color:#ff4400">【${itemName}】</span><br>` +
+            `<span style="color:#ff4400">【${itemName}】</span><br>` +
             `發出閃亮的光芒，化成了粉末！`
           );
-          addMsg(`💥 強化失敗！+${oldLv}${itemName} 化為粉末！`,'red');
+          addMsg(`💥 強化失敗！${itemName} 化為粉末！`,'red');
         }
       }
     }
@@ -1429,7 +1431,7 @@ createApp({
       if(gold.value<cost){showToast('天幣不足！','var(--red)');return;}
       gold.value-=cost; ui.enhance=false;
       const rate=successRate(it,0), roll=Math.random()*100;
-      const itemName=it.name, oldLv=it.enhance;
+      const itemName=displayName(it), oldLv=it.enhance;
       if(roll<rate){
         const newLv=Math.min(maxEnhLevel.value,oldLv+1);
         inventory.value[selSlot.value]={...it,enhance:newLv};
@@ -1440,13 +1442,13 @@ createApp({
         const boomP=0.4;
         if(!isSafe(it)&&Math.random()<boomP){
           inventory.value[selSlot.value]=null;selSlot.value=null;
-          showResult('boom',`+${oldLv}<span style="color:#ff4400">【${itemName}】</span>發出閃亮的光芒化成粉末！`);
-          addMsg(`💥 強化失敗！+${oldLv}${itemName} 化為粉末！`,'red');
+          showResult('boom',`<span style="color:#ff4400">【${itemName}】</span>發出閃亮的光芒化成粉末！`);
+          addMsg(`💥 強化失敗！${itemName} 化為粉末！`,'red');
         } else {
           const newLv=Math.max(0,oldLv-1);
           inventory.value[selSlot.value]={...it,enhance:newLv};
-          showResult('fail',`+${oldLv}<span style="color:#ff6644">【${itemName}】</span>強化失敗，等級降為 <b style="color:#ff4444">+${newLv}</b>`);
-          addMsg(`❌ 強化失敗！${itemName}+${oldLv} → +${newLv}`,'red');
+          showResult('fail',`<span style="color:#ff6644">【${itemName}】</span>強化失敗，等級降為 <b style="color:#ff4444">+${newLv}</b>`);
+          addMsg(`❌ 強化失敗！${itemName} → +${newLv}`,'red');
         }
       }
     }
@@ -1482,7 +1484,7 @@ createApp({
       gold.value+=price;
       inventory.value[idx]=null;
       if(selSlot.value===idx) selSlot.value=null;
-      addMsg(`💰 賣出 ${itName}+${lv} → +${fmt(price)} 天幣（歐林收購）`,'green');
+      addMsg(`💰 賣出 +${lv} ${itName} → +${fmt(price)} 天幣（歐林收購）`,'green');
       olinSellSelect.type=''; olinSellSelect.lv=0;
     }
 
@@ -1736,7 +1738,7 @@ createApp({
       maxEnhLevel,
       openBuy,confirmBuy,sellItem,openEnhance,doEnhance,
       activateHammer,cancelHammer,hammerClick,closeInventory,onSlotClick,
-      isSafe,successRate,scrollBonus,enhCost,sellPrice,fmt,
+      isSafe,successRate,scrollBonus,enhCost,sellPrice,fmt,displayName,
       getListPrice,getActualSellPrice,
       selectOlinSell,doOlinSell,
       goCashPay,goRefineTable,doLogout,
