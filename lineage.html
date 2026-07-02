@@ -790,7 +790,7 @@ canvas{display:block;}
         </div>
         <div class="stats">
           物品：<span>{{ totalItems }}</span> 件
-          │ 占用：<span>{{ usedSlots }}</span>/100 格
+          │ 占用：<span>{{ usedSlots }}</span>/{{ invSize }} 格
         </div>
       </div>
       <div class="inv-grid-wrap">
@@ -944,7 +944,9 @@ createApp({
     const dialog=reactive({show:false,npc:'',text:'',options:[]});
     const eff=reactive({show:false,type:'',lv:0});
     const toast=reactive({show:false,text:'',color:'var(--border)'});
-    // 背包擴充至 100 格
+    // 背包：初始 100 格，可向歐林購買擴充（invSize 存 lineage_player，帳號進度）
+    const INV_STEP=100, INV_MAX=1000, INV_EXPAND_COST=10000000;
+    const invSize=ref(100);
     const inventory=ref(Array(100).fill(null));
     // 排序類型
     const sortType=ref('default');
@@ -1129,7 +1131,7 @@ createApp({
           break;
       }
       const newArr = items;
-      while (newArr.length < 100) newArr.push(null);
+      while (newArr.length < invSize.value) newArr.push(null);
       inventory.value = newArr;
       selSlot.value = null;
     }
@@ -1149,7 +1151,7 @@ createApp({
           break;
         // default：維持原順序，僅壓實移除空格
       }
-      while (items.length < 100) items.push(null);
+      while (items.length < invSize.value) items.push(null);
       inventory.value = items;
       selSlot.value = null;
       persistInventory();
@@ -1182,6 +1184,7 @@ createApp({
       const player=JSON.parse(localStorage.getItem('lineage_player')||'{}');
       player.name=charName.value;
       player.gold=gold.value;
+      player.invSize=invSize.value;
       player.loggedIn=true;
       localStorage.setItem('lineage_player',JSON.stringify(player));
     }
@@ -1494,7 +1497,30 @@ createApp({
       dialog.options=[
         {label:'購買裝備',action:()=>{dialog.show=false;ui.shop=true;shopTab.value='weapon';}},
         {label:'出售裝備',action:()=>{dialog.show=false;ui.shop=true;shopTab.value='buyback';}},
+        {label:'購買背包格子',action:openBagExpand},
       ];
+    }
+
+    // ─── 背包格子擴充（歐林） ───
+    function openBagExpand(){
+      if(invSize.value>=INV_MAX){showToast(`背包已達上限 ${INV_MAX} 格！`,'var(--red)');return;}
+      dialog.text=`是否增加背包空格數 +${INV_STEP}？（${fmt(INV_EXPAND_COST)} 天幣）目前 ${invSize.value} 格，購買後 ${invSize.value+INV_STEP} 格。`;
+      dialog.options=[
+        {label:'是',action:confirmBagExpand},
+        {label:'否',action:talkToOlin},
+      ];
+    }
+    function confirmBagExpand(){
+      if(invSize.value>=INV_MAX){showToast(`背包已達上限 ${INV_MAX} 格！`,'var(--red)');return;}
+      if(gold.value<INV_EXPAND_COST){showToast('天幣不足，無法購買背包格子！','var(--red)');return;}
+      gold.value-=INV_EXPAND_COST;
+      invSize.value+=INV_STEP;
+      inventory.value=[...inventory.value,...Array(INV_STEP).fill(null)];
+      persistPlayer();
+      persistInventory();
+      addMsg(`🎒 背包擴充 +${INV_STEP} 格（現 ${invSize.value} 格），-${fmt(INV_EXPAND_COST)} 天幣`,'gold');
+      showToast(`背包格子已增加至 ${invSize.value} 格！`,'var(--gold2)');
+      dialog.show=false;
     }
 
     // ─── 消息日誌縮放控制 ───
@@ -1674,13 +1700,15 @@ createApp({
       charName.value = player.name || '冒險者';
       gold.value = (typeof player.gold==='number') ? player.gold : 10000000;
 
+      // 載入背包容量（先於背包內容，slice/補格都依 invSize）
+      const rawSize=Number(player.invSize);
+      invSize.value=Number.isFinite(rawSize)?Math.min(INV_MAX,Math.max(100,Math.floor(rawSize/INV_STEP)*INV_STEP)):100;
+
       // 載入背包
       const inv=JSON.parse(localStorage.getItem('lineage_inventory')||'null');
-      if(Array.isArray(inv)){
-        const arr=inv.slice(0,100);
-        while(arr.length<100) arr.push(null);
-        inventory.value=arr;
-      }
+      const arr=Array.isArray(inv)?inv.slice(0,invSize.value):[];
+      while(arr.length<invSize.value) arr.push(null);
+      inventory.value=arr;
 
       // 載入配置（最高精煉等級 + 牌價/售價/匯率）
       loadConfigFrom(JSON.parse(localStorage.getItem('lineage_config')||'null'));
@@ -1734,7 +1762,7 @@ createApp({
       msgLogScale, changeMsgLogScale, resetMsgLogScale,
       msgLogRows, changeMsgLogRows,
       MSG_ROW_H, MSG_LOG_PAD, MSG_ROWS_MIN, MSG_ROWS_MAX,
-      sortType, totalItems, usedSlots, applySort, reorganize,
+      sortType, totalItems, usedSlots, applySort, reorganize, invSize,
       maxEnhLevel,
       openBuy,confirmBuy,sellItem,openEnhance,doEnhance,
       activateHammer,cancelHammer,hammerClick,closeInventory,onSlotClick,
